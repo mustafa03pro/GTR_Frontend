@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Settings, Factory, List, MapPin, Loader, Layers } from 'lucide-react';
+import { Settings, Factory, List, MapPin, Loader, Layers, Package } from 'lucide-react';
 import GeneralSettings from './GeneralSettings';
 import WorkGroup from './WorkGroup';
 import ManageProcess from './ManageProcess';
+import SemiFinishedGood from './SemiFinishedGood';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 
@@ -19,6 +20,7 @@ const productionNavLinks = [
     { name: 'Workgroup', icon: Factory, component: WorkGroup, color: 'text-orange-500' },
     { name: 'Manage Process', icon: Layers, component: ManageProcess, color: 'text-green-500' },
     { name: 'BOM', icon: List, component: BomSettings, color: 'text-purple-500' },
+    { name: 'Semi Finished Good', icon: Package, component: SemiFinishedGood, color: 'text-yellow-600' },
 ];
 
 const ProductionSettings = () => {
