@@ -6,16 +6,43 @@ import SearchableSelect from './SearchableSelect'; // Assuming a multi-select co
 const API_URL = import.meta.env.VITE_API_BASE_URL;
 const getAuthHeaders = () => ({ "Authorization": `Bearer ${localStorage.getItem('token')}` });
 
+const DEFAULT_STATE = {
+  inventoryType: 'Semi Finished Good',
+  name: '',
+  itemCode: '',
+  description: '',
+  product: true,
+  service: false,
+  purchase: true,
+  sales: true,
+  roll: false,
+  scrapItem: false,
+  categoryId: '',
+  subCategoryId: '',
+  jobOrderType: 'Extrusion',
+  issueUnitId: '',
+  purchaseUnitId: '',
+  purchaseToIssueRelation: 1,
+  wastagePercent: 0,
+  reorderLimit: 0,
+  priceCategoryId: '',
+  purchasePrice: 0,
+  salesPrice: 0,
+  taxInclusive: false,
+  taxId: '',
+  taxRate: 0,
+  imagePath: '',
+  bomItemIds: [],
+  processIds: [],
+  toolIds: [],
+  toolStationIds: []
+};
+
+const JOB_ORDER_TYPES = ['Extrusion', 'Printing', 'Cutting'];
+
 // --- Form Component for Semi Finished Good ---
 const SemiFinishedGoodForm = ({ item, onSave, onCancel, locationId }) => {
-    const [formData, setFormData] = useState({
-        name: '', itemCode: '', description: '', inventoryType: 'Semi Finished Good',
-        product: true, service: false, purchase: false, sales: true, roll: false, scrapItem: false,
-        categoryId: '', subCategoryId: '', issueUnitId: '', purchaseUnitId: '',
-        purchaseToIssueRelation: 1, wastagePercent: 0, reorderLimit: 0,
-        priceCategoryId: '', purchasePrice: 0, salesPrice: 0, taxInclusive: false, taxId: '', taxRate: 0,
-        imagePath: '', bomItemIds: [], processIds: [], toolIds: [], toolStationIds: []
-    });
+    const [formData, setFormData] = useState(DEFAULT_STATE);
     const [dependencies, setDependencies] = useState({
         categories: [], subCategories: [], units: [], priceCategories: [], taxes: [],
         rawMaterials: [], processes: [], tools: [], toolStations: []
@@ -26,27 +53,28 @@ const SemiFinishedGoodForm = ({ item, onSave, onCancel, locationId }) => {
         const fetchDependencies = async () => {
             setLoading(true);
             try {
-                const [catRes, subCatRes, unitRes, priceCatRes, taxRes, rawMatRes, procRes, toolRes, toolStatRes] = await Promise.all([
+                const [
+                  catRes, unitRes, priceCatRes, taxRes, rawMatRes, procRes, toolRes, toolStatRes
+                ] = await Promise.all([
                     axios.get(`${API_URL}/production/categories`, { headers: getAuthHeaders() }),
-                    axios.get(`${API_URL}/production/subcategory`, { headers: getAuthHeaders() }),
                     axios.get(`${API_URL}/production/units`, { headers: getAuthHeaders() }),
                     axios.get(`${API_URL}/production/price-categories`, { headers: getAuthHeaders() }),
                     axios.get(`${API_URL}/production/taxes`, { headers: getAuthHeaders() }),
-                    axios.get(`${API_URL}/products/raw-material`, { headers: getAuthHeaders() }), // Assuming endpoint
+                    axios.get(`${API_URL}/production/raw-materials`, { headers: getAuthHeaders() }),
                     axios.get(`${API_URL}/production/processes`, { headers: getAuthHeaders() }),
                     axios.get(`${API_URL}/production/tools`, { headers: getAuthHeaders() }),
                     axios.get(`${API_URL}/production/work-stations`, { headers: getAuthHeaders() }),
                 ]);
                 setDependencies({
-                    categories: catRes.data.content || catRes.data,
-                    subCategories: subCatRes.data.content || subCatRes.data,
-                    units: unitRes.data.content || unitRes.data,
-                    priceCategories: priceCatRes.data.content || priceCatRes.data,
-                    taxes: taxRes.data.content || taxRes.data,
-                    rawMaterials: rawMatRes.data.content || rawMatRes.data,
-                    processes: procRes.data.content || procRes.data,
-                    tools: toolRes.data.content || toolRes.data,
-                    toolStations: toolStatRes.data.content || toolStatRes.data,
+                    categories: catRes.data.content || catRes.data || [],
+                    subCategories: [], // loaded when category selected
+                    units: unitRes.data.content || unitRes.data || [],
+                    priceCategories: priceCatRes.data.content || priceCatRes.data || [],
+                    taxes: taxRes.data.content || taxRes.data || [],
+                    rawMaterials: rawMatRes.data.content || rawMatRes.data || [],
+                    processes: procRes.data.content || procRes.data || [],
+                    tools: toolRes.data.content || toolRes.data || [],
+                    toolStations: toolStatRes.data.content || toolStatRes.data || []
                 });
             } catch (err) {
                 console.error("Failed to fetch form dependencies", err);
@@ -60,42 +88,74 @@ const SemiFinishedGoodForm = ({ item, onSave, onCancel, locationId }) => {
 
     useEffect(() => {
         if (item) {
-            setFormData({
-                name: item.name || '',
-                itemCode: item.itemCode || '',
-                description: item.description || '',
-                inventoryType: item.inventoryType || 'Semi Finished Good',
-                product: item.product ?? true,
-                service: item.service ?? false,
-                purchase: item.purchase ?? false,
-                sales: item.sales ?? true,
-                roll: item.roll ?? false,
-                scrapItem: item.scrapItem ?? false,
-                categoryId: item.categoryId || '',
-                subCategoryId: item.subCategoryId || '',
-                issueUnitId: item.issueUnitId || '',
-                purchaseUnitId: item.purchaseUnitId || '',
-                purchaseToIssueRelation: item.purchaseToIssueRelation || 1,
-                wastagePercent: item.wastagePercent || 0,
-                reorderLimit: item.reorderLimit || 0,
-                priceCategoryId: item.priceCategoryId || '',
-                purchasePrice: item.purchasePrice || 0,
-                salesPrice: item.salesPrice || 0,
-                taxInclusive: item.taxInclusive ?? false,
-                taxId: item.taxId || '',
-                taxRate: item.taxRate || 0,
-                imagePath: item.imagePath || '',
-                bomItemIds: item.bomItemIds || [],
-                processIds: item.processIds || [],
-                toolIds: item.toolIds || [],
-                toolStationIds: item.toolStationIds || [],
-            });
+            setFormData(prev => ({
+              ...prev,
+              ...DEFAULT_STATE,
+              ...item,
+              purchase: item.purchase ?? true,
+              sales: item.sales ?? true,
+              inventoryType: item.inventoryType || DEFAULT_STATE.inventoryType,
+              jobOrderType: item.jobOrderType || DEFAULT_STATE.jobOrderType
+            }));
         }
     }, [item]);
 
+    // Fetch sub-categories when categoryId changes
+    useEffect(() => {
+        if (!formData.categoryId) {
+            setDependencies(prev => ({ ...prev, subCategories: [] }));
+            return;
+        }
+
+        const fetchSubCategories = async () => {
+            try {
+                const res = await axios.get(`${API_URL}/production/subcategories?categoryId=${formData.categoryId}`, { headers: getAuthHeaders() });
+                setDependencies(prev => ({ ...prev, subCategories: res.data.content || res.data || [] }));
+            } catch (err) {
+                console.error("Failed to fetch sub-categories", err);
+                setDependencies(prev => ({ ...prev, subCategories: [] }));
+            }
+        };
+
+        fetchSubCategories();
+    }, [formData.categoryId]);
+
+      // auto-generate item code from name if itemCode empty
+    useEffect(() => {
+        if (!formData.itemCode && formData.name) {
+        const code = formData.name.trim().toUpperCase().replace(/\s+/g, '-').slice(0, 30);
+        setFormData(prev => ({ ...prev, itemCode: code }));
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [formData.name]);
+
     const handleChange = e => {
-        const { name, value, type, checked } = e.target;
-        setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+        const { name, value, type, checked, files } = e.target;
+        if (type === 'checkbox') {
+            setFormData(prev => ({ ...prev, [name]: checked }));
+            return;
+        }
+        if (type === 'file') {
+            // store just filename (or handle upload separately)
+            setFormData(prev => ({ ...prev, imagePath: files[0] ? files[0].name : '' }));
+            return;
+        }
+        setFormData(prev => ({ ...prev, [name]: value }));
+        if (name === 'categoryId') setFormData(prev => ({ ...prev, subCategoryId: '' }));
+    };
+
+    const handleCreateSubCategory = async () => {
+        const title = window.prompt('Enter new sub-category name');
+        if (!title) return;
+        try {
+            const res = await axios.post(`${API_URL}/production/subcategories`, { name: title, categoryId: formData.categoryId }, { headers: getAuthHeaders() });
+            const newSub = res.data;
+            setDependencies(prev => ({ ...prev, subCategories: [...prev.subCategories, newSub] }));
+            setFormData(prev => ({ ...prev, subCategoryId: newSub.id }));
+        } catch (err) {
+            console.error('Failed to create sub-category', err);
+            alert('Failed to create sub-category.');
+        }
     };
 
     const handleMultiSelect = (name, selectedIds) => {
@@ -112,68 +172,196 @@ const SemiFinishedGoodForm = ({ item, onSave, onCancel, locationId }) => {
     const toOptions = (items, valueKey = 'id', labelKey = 'name') => items.map(i => ({ value: i[valueKey], label: i[labelKey] }));
 
     return (
-        <div className="bg-card p-6 rounded-xl shadow-sm">
+        <div className="bg-white p-6 rounded-lg shadow-sm max-w-full">
             <div className="flex items-center gap-4 mb-6">
-                <button onClick={onCancel} className="p-2 rounded-full hover:bg-background-muted"><ArrowLeft size={20} /></button>
-                <h1 className="text-2xl font-bold text-foreground">{item?.id ? 'Edit' : 'Add'} Semi Finished Good</h1>
+                <button onClick={onCancel} className="p-2 rounded-full hover:bg-gray-100"><ArrowLeft size={18} /></button>
+                <h1 className="text-xl font-semibold">{item?.id ? 'Edit' : 'Add New'} Semi Finished Good</h1>
             </div>
             <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Basic Info */}
+                {/* Top row: Inventory type, Job order type, Item for checkboxes */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div><label className="label">Name</label><input name="name" value={formData.name} onChange={handleChange} className="input" required /></div>
-                    <div><label className="label">Item Code</label><input name="itemCode" value={formData.itemCode} onChange={handleChange} className="input" /></div>
-                    <div><label className="label">Description</label><input name="description" value={formData.description} onChange={handleChange} className="input" /></div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Inventory Type</label>
+                        <select name="inventoryType" value={formData.inventoryType} onChange={handleChange} className="w-full input">
+                            <option>Raw Material</option>
+                            <option>Finished Good</option>
+                            <option>Semi Finished Good</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Job Order Type</label>
+                        <select name="jobOrderType" value={formData.jobOrderType || ''} onChange={handleChange} className="w-full input">
+                            {JOB_ORDER_TYPES.map(j => <option key={j} value={j}>{j}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-2"><input type="checkbox" name="purchase" checked={formData.purchase} onChange={handleChange} /> Purchase</label>
+                            <label className="flex items-center gap-2"><input type="checkbox" name="sales" checked={formData.sales} onChange={handleChange} /> Sales</label>
+                            <label className="flex items-center gap-2"><input type="checkbox" name="roll" checked={formData.roll} onChange={handleChange} /> Is Roll</label>
+                            <label className="flex items-center gap-2"><input type="checkbox" name="scrapItem" checked={formData.scrapItem} onChange={handleChange} /> Scrap Item</label>
+                        </div>
+                    </div>
                 </div>
 
-                {/* Units & Category */}
+                {/* Basic fields */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="label">Name</label>
+                        <input name="name" value={formData.name} onChange={handleChange} className="input" required />
+                    </div>
+                    <div>
+                        <label className="label">Item Code</label>
+                        <input name="itemCode" value={formData.itemCode} onChange={handleChange} className="input" placeholder="Auto Generate..." />
+                    </div>
+                    <div>
+                        <label className="label">Description</label>
+                        <input name="description" value={formData.description} onChange={handleChange} className="input" />
+                    </div>
+                </div>
+
+                {/* Category & Subcategory (searchable + create) */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div><label className="label">Category</label><select name="categoryId" value={formData.categoryId} onChange={handleChange} className="input"><option value="">Select Category</option>{dependencies.categories.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
-                    <div><label className="label">Sub Category</label><select name="subCategoryId" value={formData.subCategoryId} onChange={handleChange} className="input"><option value="">Select Sub Category</option>{dependencies.subCategories.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
-                    <div><label className="label">Issue Unit</label><select name="issueUnitId" value={formData.issueUnitId} onChange={handleChange} className="input"><option value="">Select Unit</option>{dependencies.units.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
-                    <div><label className="label">Purchase Unit</label><select name="purchaseUnitId" value={formData.purchaseUnitId} onChange={handleChange} className="input"><option value="">Select Unit</option>{dependencies.units.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
+                    <div>
+                        <label className="label">Category</label>
+                        <select name="categoryId" value={formData.categoryId} onChange={handleChange} className="input">
+                            <option value="">Select Category</option>
+                            {dependencies.categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+
+                    <div>
+                        <label className="label">Sub Category</label>
+                        <div className="flex gap-2">
+                            <select name="subCategoryId" value={formData.subCategoryId} onChange={handleChange} className="input flex-1" disabled={!formData.categoryId}>
+                                <option value="">{dependencies.subCategories.length ? 'Select Sub Category' : 'No sub-categories'}</option>
+                                {dependencies.subCategories.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                            <button type="button" onClick={handleCreateSubCategory} className="btn-secondary">+ Add New</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="label">Image</label>
+                        <input type="file" name="image" onChange={handleChange} className="input" />
+                    </div>
+
+                    <div>
+                        <label className="label">Price Category</label>
+                        <select name="priceCategoryId" value={formData.priceCategoryId} onChange={handleChange} className="input">
+                            <option value="">Select Category</option>
+                            {dependencies.priceCategories.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                    </div>
                 </div>
 
-                {/* Pricing & Tax */}
+                {/* Units + relation inline (matches screenshot) */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div><label className="label">Purchase Price</label><input name="purchasePrice" type="number" value={formData.purchasePrice} onChange={handleChange} className="input" /></div>
-                    <div><label className="label">Sales Price</label><input name="salesPrice" type="number" value={formData.salesPrice} onChange={handleChange} className="input" /></div>
-                    <div><label className="label">Price Category</label><select name="priceCategoryId" value={formData.priceCategoryId} onChange={handleChange} className="input"><option value="">Select Category</option>{dependencies.priceCategories.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
-                    <div><label className="label">Tax</label><select name="taxId" value={formData.taxId} onChange={handleChange} className="input"><option value="">Select Tax</option>{dependencies.taxes.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></div>
+                    <div>
+                        <label className="label">Issue Unit</label>
+                        <select name="issueUnitId" value={formData.issueUnitId} onChange={handleChange} className="input">
+                            <option value="">Select Unit</option>
+                            {dependencies.units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="label">Purchase Unit</label>
+                        <select name="purchaseUnitId" value={formData.purchaseUnitId} onChange={handleChange} className="input">
+                            <option value="">Select Unit</option>
+                            {dependencies.units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="label">Relation (1 Purchase Unit = )</label>
+                        <input name="purchaseToIssueRelation" value={formData.purchaseToIssueRelation} onChange={handleChange} className="input" type="number" min="0.0001" step="0.0001" />
+                    </div>
+                    <div>
+                        <label className="label">Wastage %</label>
+                        <input name="wastagePercent" value={formData.wastagePercent} onChange={handleChange} className="input" type="number" step="0.01" />
+                    </div>
                 </div>
 
-                {/* Associations */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Pricing, reorder, tax */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label className="label">Purchase Price</label>
+                        <div className="flex items-center gap-2">
+                            <span className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-l-md">AED</span>
+                            <input name="purchasePrice" type="number" value={formData.purchasePrice} onChange={handleChange} className="input flex-1 rounded-l-none" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="label">Sales Price</label>
+                        <div className="flex items-center gap-2">
+                            <span className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-l-md">AED</span>
+                            <input name="salesPrice" type="number" value={formData.salesPrice} onChange={handleChange} className="input flex-1 rounded-l-none" />
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="label">Reorder Limit</label>
+                        <input name="reorderLimit" value={formData.reorderLimit} onChange={handleChange} className="input" type="number" />
+                    </div>
+
+                    <div>
+                        <label className="label">Tax</label>
+                        <div className="flex gap-2">
+                            <select name="taxId" value={formData.taxId} onChange={handleChange} className="input flex-1">
+                                <option value="">Select Tax</option>
+                                {dependencies.taxes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                            </select>
+                            <input name="taxRate" value={formData.taxRate} onChange={handleChange} className="input w-24" type="number" placeholder="%" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* associations - BOM, Processes, Tools, Workstations */}
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="label">BOM Items (Raw Materials)</label>
-                        <SearchableSelect options={toOptions(dependencies.rawMaterials)} selected={formData.bomItemIds} onSelect={(ids) => handleMultiSelect('bomItemIds', ids)} placeholder="Select BOM items..." />
+                        <SearchableSelect
+                            options={toOptions(dependencies.rawMaterials)}
+                            selected={formData.bomItemIds}
+                            onSelect={(ids) => handleMultiSelect('bomItemIds', ids)}
+                            creatable={false}
+                            placeholder="Select BOM items..."
+                        />
                     </div>
                     <div>
                         <label className="label">Processes</label>
-                        <SearchableSelect options={toOptions(dependencies.processes)} selected={formData.processIds} onSelect={(ids) => handleMultiSelect('processIds', ids)} placeholder="Select processes..." />
+                        <SearchableSelect
+                            options={toOptions(dependencies.processes)}
+                            selected={formData.processIds}
+                            onSelect={(ids) => handleMultiSelect('processIds', ids)}
+                            placeholder="Select processes..."
+                        />
                     </div>
                     <div>
                         <label className="label">Tools</label>
-                        <SearchableSelect options={toOptions(dependencies.tools)} selected={formData.toolIds} onSelect={(ids) => handleMultiSelect('toolIds', ids)} placeholder="Select tools..." />
+                        <SearchableSelect
+                            options={toOptions(dependencies.tools)}
+                            selected={formData.toolIds}
+                            onSelect={(ids) => handleMultiSelect('toolIds', ids)}
+                            placeholder="Select tools..."
+                        />
                     </div>
                     <div>
                         <label className="label">Tool Stations</label>
-                        <SearchableSelect options={toOptions(dependencies.toolStations, 'id', 'workstationName')} selected={formData.toolStationIds} onSelect={(ids) => handleMultiSelect('toolStationIds', ids)} placeholder="Select tool stations..." />
+                        <SearchableSelect
+                            options={toOptions(dependencies.toolStations, 'id', 'workstationName')}
+                            selected={formData.toolStationIds}
+                            onSelect={(ids) => handleMultiSelect('toolStationIds', ids)}
+                            placeholder="Select tool stations..."
+                        />
                     </div>
-                </div>
+                </div> 
 
-                {/* Flags */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 border-t">
-                    <label className="flex items-center gap-2"><input type="checkbox" name="product" checked={formData.product} onChange={handleChange} /> Product</label>
-                    <label className="flex items-center gap-2"><input type="checkbox" name="sales" checked={formData.sales} onChange={handleChange} /> Sales Item</label>
-                    <label className="flex items-center gap-2"><input type="checkbox" name="purchase" checked={formData.purchase} onChange={handleChange} /> Purchase Item</label>
-                    <label className="flex items-center gap-2"><input type="checkbox" name="service" checked={formData.service} onChange={handleChange} /> Service</label>
-                    <label className="flex items-center gap-2"><input type="checkbox" name="roll" checked={formData.roll} onChange={handleChange} /> Is Roll</label>
-                    <label className="flex items-center gap-2"><input type="checkbox" name="scrapItem" checked={formData.scrapItem} onChange={handleChange} /> Scrap Item</label>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4">
+                <div className="flex justify-end gap-3 pt-4">
                     <button type="button" onClick={onCancel} className="btn-secondary">Cancel</button>
-                    <button type="submit" className="btn-primary">Save Item</button>
+                    <button type="submit" className="btn-primary">Save</button>
                 </div>
             </form>
         </div>
@@ -197,7 +385,7 @@ const SemiFinishedGood = ({ locationId }) => {
         setError('');
         try {
             const params = { page: currentPage, size: pageSize, sort: 'updatedAt,desc' };
-            const response = await axios.get(`${API_URL}/products/semi-finished`, { headers: getAuthHeaders(), params });
+            const response = await axios.get(`${API_URL}/production/semi-finished`, { headers: getAuthHeaders(), params });
             setData(response.data.content || []);
             setTotalPages(response.data.totalPages || 0);
         } catch (err) {
@@ -218,7 +406,7 @@ const SemiFinishedGood = ({ locationId }) => {
 
     const handleSave = async (itemData) => {
         const isUpdating = Boolean(editingItem?.id);
-        const url = isUpdating ? `${API_URL}/products/semi-finished/${editingItem.id}` : `${API_URL}/products/semi-finished`;
+        const url = isUpdating ? `${API_URL}/production/semi-finished/${editingItem.id}` : `${API_URL}/production/semi-finished`;
         const method = isUpdating ? 'put' : 'post';
 
         try {
@@ -233,7 +421,7 @@ const SemiFinishedGood = ({ locationId }) => {
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this item?')) {
             try {
-                await axios.delete(`${API_URL}/products/semi-finished/${id}`, { headers: getAuthHeaders() });
+                await axios.delete(`${API_URL}/production/semi-finished/${id}`, { headers: getAuthHeaders() });
                 await fetchData(); // Refetch data to update the list
             } catch (err) {
                 alert(`Error: ${err.response?.data?.message || 'Failed to delete item.'}`);
@@ -257,7 +445,7 @@ const SemiFinishedGood = ({ locationId }) => {
     }, [data, searchTerm, locationId]);
 
     if (view === 'form') {
-        return <SemiFinishedGoodForm item={editingItem} onSave={handleSave} onCancel={handleCancelForm} locationId={locationId} />;
+        return <SemiFinishedGoodForm item={editingItem} onSave={handleSave} onCancel={handleCancelForm} />;
     }
 
     return (

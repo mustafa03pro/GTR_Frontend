@@ -1,44 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Settings, Factory, List, MapPin, Loader, Layers, Package } from 'lucide-react';
+
+import { Settings, Factory, List, MapPin, Layers, Package, SlidersHorizontal, LayoutGrid, Loader } from 'lucide-react';
 import GeneralSettings from './GeneralSettings';
 import WorkGroup from './WorkGroup';
 import ManageProcess from './ManageProcess';
 import SemiFinishedGood from './SemiFinishedGood';
+import Bom from './Bom';
+import ProParameter from './ProParameter';
+import ProCategories from './ProCategories';
+import ProRawMaterial from './ProRawMaterial';
+
 
 const API_URL = import.meta.env.VITE_API_BASE_URL;
-
-const BomSettings = () => (
-    <div className="text-center py-10 border-2 border-dashed border-border rounded-lg bg-background-muted text-foreground-muted mt-6">
-        <h3 className="mt-2 text-lg font-medium text-foreground">Bill of Materials (BOM)</h3>
-        <p className="mt-1 text-sm">Manage your product BOMs here.</p>
-    </div>
-);
 
 const productionNavLinks = [
     { name: 'General', icon: Settings, component: GeneralSettings, color: 'text-cyan-500' },
     { name: 'Workgroup', icon: Factory, component: WorkGroup, color: 'text-orange-500' },
     { name: 'Manage Process', icon: Layers, component: ManageProcess, color: 'text-green-500' },
-    { name: 'BOM', icon: List, component: BomSettings, color: 'text-purple-500' },
+    { name: 'Parameter', icon: SlidersHorizontal, component: ProParameter, color: 'text-indigo-500' },
+    { name: 'Categories', icon: LayoutGrid, component: ProCategories, color: 'text-rose-500' },
+    { name: 'Raw Materials', icon: Package, component: ProRawMaterial, color: 'text-amber-500' },
+    { name: 'BOM', icon: List, component: Bom, color: 'text-purple-500' },
     { name: 'Semi Finished Good', icon: Package, component: SemiFinishedGood, color: 'text-yellow-600' },
 ];
 
 const ProductionSettings = () => {
     const [activeTab, setActiveTab] = useState(productionNavLinks[0].name);
     const [locations, setLocations] = useState([]);
-    const [selectedLocation, setSelectedLocation] = useState('');
+    const [selectedLocation, setSelectedLocation] = useState('all'); // Default to 'all' immediately
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchLocations = async () => {
             setLoading(true);
             try {
-                const token = localStorage.getItem('token');
-                const res = await axios.get(`${API_URL}/locations`, { headers: { Authorization: `Bearer ${token}` } });
+                const token = localStorage.getItem('token'); // Assuming token is needed
+                const res = await axios.get(`${API_URL}/locations`, { headers: { Authorization: `Bearer ${token}` } }); // Ensure this endpoint is correct
                 setLocations(res.data);
-                if (res.data.length > 0) {
-                    setSelectedLocation('all'); // Default to 'all'
-                }
             } catch (err) {
                 console.error("Failed to fetch locations:", err);
             } finally {
