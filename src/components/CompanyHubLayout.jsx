@@ -22,7 +22,9 @@ const SidebarContent = ({ onLinkClick }) => {
         { name: 'Sales', icon: DollarSign, href: '/sales-dashboard', module: 'SALES' },
         { name: 'CRM', icon: Users, href: '/crm-dashboard', module: 'CRM' },
         { name: 'Production', icon: Building, href: '/production-dashboard', module: 'PRODUCTION' },
+        { name: 'Purchase', icon: Settings, href: '/purchase-dashboard',module: 'PURCHASES'},
         { name: 'Settings', icon: Settings, href: '/company-settings' },
+       
     ];
 
     const navLinks = useMemo(() => {
