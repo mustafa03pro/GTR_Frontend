@@ -25,7 +25,9 @@ import CrmLead from './crm/pages/CrmLead.jsx'
 import CrmCompanies from './crm/pages/CrmCompanies.jsx'
 import LeadInfo from './crm/pages/Leadinfo.jsx';
 import PurchaseModule from './purchase/pages/PurchaseModule.jsx';
-import SalesLayout from './sales/SalesLayout.jsx'
+import PurchaseOrderPage from './purchase/components/PurchaseOrderPage.jsx';
+import PurchaseInvoicePage from './purchase/components/PurchaseInvoicePage.jsx';
+import PurchasePaymentPage from './purchase/components/PurchasePaymentPage.jsx';
 import SalesDashboard from './sales/SalesDashboard.jsx';
 import Orders from './sales/pages/Orders.jsx';
 import Quotation from './sales/pages/Quotation.jsx'
@@ -98,9 +100,9 @@ function App() {
           <Route path='/production-settings' element={<ProductionSettings /> } />
           <Route path='/crm-settings' element={<CrmSettings /> } />
           {/* The PartyType setting is a CRUD interface, so it gets its own group of routes */}
-          <Route path='/party-type-settings' element={<PartyType />} />
-          <Route path="/party-type-settings/new" element={<PartyForm />} />
-          <Route path="/party-type-settings/edit/:id" element={<PartyForm />} />
+          <Route path='/company-settings/party-type' element={<PartyType />} /> 
+          <Route path="/company-settings/party-type/new" element={<PartyForm />} />
+          <Route path="/company-settings/party-type/edit/:id" element={<PartyForm />} />
           <Route path='/crm-dashboard' element={<CrmModule />}>
             <Route index element={<CrmPlaceholder pageName="CRM Dashboard" />} />
             <Route path="home" element={<CrmPlaceholder pageName="Home" />} />
@@ -113,17 +115,6 @@ function App() {
             <Route path="deals" element={<CrmPlaceholder pageName="Deals" />} />
             <Route path="tasks" element={<CrmPlaceholder pageName="Tasks" />} />
             <Route path="operations" element={<CrmPlaceholder pageName="Operations" />} />
-          </Route>
-          {/* Sales Module Routes */}
-          <Route path="/sales-dashboard" element={<SalesLayout />}>
-            <Route index element={<SalesDashboard />} />
-          </Route>
-          <Route path="/sales" element={<SalesLayout />}>
-            <Route path='quotations' element={<Quotation />} />
-            <Route path="orders" element={<Orders />} />
-            <Route path="products" element={<SalesProduct />} />
-            <Route path="customers" element={<SalesCustomer />} />
-            <Route path='settings' element={<SalesSetting />} />
           </Route>
           <Route path='/account-dashboard' element={<Account />}>
             <Route index element={<AccountPlaceholder pageName="Chart Of Accounts" />} />
@@ -146,12 +137,12 @@ function App() {
             <Route path="work-order-report" element={<ProductionPlaceholder pageName="Work Order Report" />} />
           </Route>
           {/* Purchase Module Routes */}
-          <Route path="/purchase-dashboard" element={<PurchaseModule />}>
+          <Route path="/purchase-dashboard/*" element={<PurchaseModule />}>
             <Route index element={<PurchasePlaceholder pageName="Purchase Dashboard" />} />
             <Route path="dashboard" element={<PurchasePlaceholder pageName="Purchase Dashboard" />} />
-            <Route path="purchase-orders" element={<PurchasePlaceholder pageName="Purchase Orders" />} />
-            <Route path="bills" element={<PurchasePlaceholder pageName="Bills" />} />
-            <Route path="payments" element={<PurchasePlaceholder pageName="Payments" />} />
+            <Route path="purchase-orders" element={<PurchaseOrderPage />} /> 
+            <Route path="bills" element={<PurchaseInvoicePage />} />
+            <Route path="payments" element={<PurchasePaymentPage />} />
             <Route path="debit-notes" element={<PurchasePlaceholder pageName="Debit Notes" />} />
           </Route>
         </Routes>
