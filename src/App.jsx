@@ -1,4 +1,4 @@
-import { Route, BrowserRouter as Router, Routes } from 'react-router-dom'
+import { Route, BrowserRouter as Router, Routes, Outlet } from 'react-router-dom'
 import './App.css'
 import { TenantProvider } from './context/TenantContext.jsx'
 import Home from './pages/Home'
@@ -25,7 +25,9 @@ import CrmLead from './crm/pages/CrmLead.jsx'
 import CrmCompanies from './crm/pages/CrmCompanies.jsx'
 import LeadInfo from './crm/pages/Leadinfo.jsx';
 import PurchaseModule from './purchase/pages/PurchaseModule.jsx';
-import SalesLayout from './sales/SalesLayout.jsx'
+import PurchaseOrderPage from './purchase/components/PurchaseOrderPage.jsx';
+import PurchaseInvoicePage from './purchase/components/PurchaseInvoicePage.jsx';
+import PurchasePaymentPage from './purchase/components/PurchasePaymentPage.jsx';
 import SalesDashboard from './sales/SalesDashboard.jsx';
 import Orders from './sales/pages/Orders.jsx';
 import OrderForm from './sales/pages/OrderForm.jsx';
@@ -70,6 +72,14 @@ const PurchasePlaceholder = ({ pageName }) => (
   <div className="text-center py-20">
     <h1 className="text-3xl font-bold text-foreground">{pageName}</h1>
     <p className="text-foreground-muted mt-2">This page is under construction.</p>
+  </div>
+);
+
+// Placeholder for SalesLayout. Replace with an actual import.
+const SalesLayout = () => (
+  <div>
+    {/* You can add your sales module sidebar/header here */}
+    <Outlet />
   </div>
 );
 
@@ -161,14 +171,7 @@ function App() {
             <Route path="work-order-report" element={<ProductionPlaceholder pageName="Work Order Report" />} />
           </Route>
           {/* Purchase Module Routes */}
-          <Route path="/purchase-dashboard" element={<PurchaseModule />}>
-            <Route index element={<PurchasePlaceholder pageName="Purchase Dashboard" />} />
-            <Route path="dashboard" element={<PurchasePlaceholder pageName="Purchase Dashboard" />} />
-            <Route path="purchase-orders" element={<PurchasePlaceholder pageName="Purchase Orders" />} />
-            <Route path="bills" element={<PurchasePlaceholder pageName="Bills" />} />
-            <Route path="payments" element={<PurchasePlaceholder pageName="Payments" />} />
-            <Route path="debit-notes" element={<PurchasePlaceholder pageName="Debit Notes" />} />
-          </Route>
+          <Route path="/purchase-dashboard/*" element={<PurchaseModule />} />
         </Routes>
       </Router>
     </TenantProvider>

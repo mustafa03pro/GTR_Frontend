@@ -14,6 +14,7 @@ const serviceModulesOptions = [
     { value: 'POS', label: 'Point of Sale (POS)' },
     { value: 'CRM', label: 'CRM' },
     { value: 'PRODUCTION', label: 'Production' },
+    { value: 'PURCHASES', label: 'Purchase' },
     { value: 'SALES', label: 'Sales' }
 ];
 
