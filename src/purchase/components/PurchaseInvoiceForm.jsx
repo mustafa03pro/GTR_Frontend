@@ -1,1480 +1,831 @@
-// import React, { useState, useEffect, useMemo } from 'react';
-// import { useNavigate, useParams, Link } from 'react-router-dom';
-// import axios from 'axios';
-// import { Plus, Trash2, Save, Loader, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import axios from 'axios';
+import { Plus, X, Upload, Save, Trash2, Calendar, FileText, ChevronDown, Paperclip, Loader } from 'lucide-react';
 
-// const API_URL = import.meta.env.VITE_API_BASE_URL;
+const API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
-// const InputField = ({ label, ...props }) => (
-//     <div>
-//         <label htmlFor={props.id || props.name} className="block text-sm font-medium text-foreground-muted">{label}</label>
-//         <input {...props} className="input mt-1 bg-background-muted border-border" />
-//     </div>
-// );
-
-// const SelectField = ({ label, children, ...props }) => (
-//     <div>
-//         <label htmlFor={props.id || props.name} className="block text-sm font-medium text-foreground-muted">{label}</label>
-//         <select {...props} className="input mt-1 bg-background-muted border-border">
-//             {children}
-//         </select>
-//     </div>
-// );
-
-// const PurchaseInvoiceForm = () => {
-//     const { id } = useParams();
-//     const navigate = useNavigate();
-//     const isEditing = Boolean(id);
-
-//     const [formData, setFormData] = useState({
-//         billLedger: 'Purchase',
-//         supplierId: '',
-//         billNumber: '',
-//         orderNumber: '',
-//         billDate: new Date().toISOString().split('T')[0],
-//         dueDate: '',
-//         billType: 'Without Discount',
-//         notes: '',
-//         lines: [],
-//         otherCharges: 0,
-//     });
-//     const [suppliers, setSuppliers] = useState([]);
-//     const [rawMaterials, setRawMaterials] = useState([]);
-//     const [units, setUnits] = useState([]);
-//     const [taxes, setTaxes] = useState([]);
-//     const [loading, setLoading] = useState(false);
-//     const [error, setError] = useState('');
-
-//     useEffect(() => {
-//         const fetchData = async () => {
-//             setLoading(true);
-//             try {
-//                 const token = localStorage.getItem('token');
-//                 const headers = { Authorization: `Bearer ${token}` };
-
-//                 const [suppliersRes, materialsRes, unitsRes, taxesRes] = await Promise.all([
-//                     axios.get(`${API_URL}/parties?type=SUPPLIER`, { headers }),
-//                     axios.get(`${API_URL}/production/raw-materials`, { headers }),
-//                     axios.get(`${API_URL}/production/units`, { headers }),
-//                     axios.get(`${API_URL}/production/taxes`, { headers }),
-//                 ]);
-
-//                 setSuppliers(suppliersRes.data.content || []);
-//                 setRawMaterials(materialsRes.data.content || []);
-//                 setUnits(unitsRes.data.content || []);
-//                 setTaxes(taxesRes.data.content || []);
-
-//                 if (isEditing) {
-//                     const invRes = await axios.get(`${API_URL}/purchases/invoices/${id}`, { headers });
-//                     setFormData({
-//                         ...invRes.data,
-//                         billDate: invRes.data.billDate ? new Date(invRes.data.billDate).toISOString().split('T')[0] : '',
-//                         dueDate: invRes.data.dueDate ? new Date(invRes.data.dueDate).toISOString().split('T')[0] : '',
-//                         lines: invRes.data.lines || [],
-//                     });
-//                 }
-//             } catch (err) {
-//                 console.error("Failed to fetch data:", err);
-//                 setError("Failed to load necessary data. Please try again.");
-//             } finally {
-//                 setLoading(false);
-//             }
-//         };
-//         fetchData();
-//     }, [id, isEditing]);
-
-//     const handleHeaderChange = (e) => {
-//         const { name, value } = e.target;
-//         setFormData(prev => ({ ...prev, [name]: value }));
-//     };
-
-//     const handleLineChange = (index, e) => {
-//         const { name, value } = e.target;
-//         const newLines = [...formData.lines];
-//         newLines[index] = { ...newLines[index], [name]: value };
-//         setFormData(prev => ({ ...prev, lines: newLines }));
-//     };
-
-//     const addLine = () => {
-//         setFormData(prev => ({
-//             ...prev,
-//             lines: [
-//                 ...prev.lines,
-//                 {
-//                     lineNumber: prev.lines.length + 1,
-//                     itemId: '',
-//                     description: '',
-//                     quantityNet: 1,
-//                     unitId: '',
-//                     rate: 0,
-//                     taxId: '',
-//                     lineDiscount: 0,
-//                 }
-//             ]
-//         }));
-//     };
-
-//     const removeLine = (index) => {
-//         setFormData(prev => ({
-//             ...prev,
-//             lines: prev.lines.filter((_, i) => i !== index)
-//         }));
-//     };
-
-//     const totals = useMemo(() => {
-//         let subTotal = 0;
-//         let totalDiscount = 0;
-//         let totalTax = 0;
-
-//         formData.lines.forEach(line => {
-//             const quantity = parseFloat(line.quantityNet) || 0;
-//             const rate = parseFloat(line.rate) || 0;
-//             const lineDiscount = parseFloat(line.lineDiscount) || 0;
-//             const lineAmount = (quantity * rate);
-//             const netAmount = lineAmount - lineDiscount;
-
-//             subTotal += lineAmount;
-//             totalDiscount += lineDiscount;
-
-//             const taxInfo = taxes.find(t => t.id === parseInt(line.taxId));
-//             if (taxInfo) {
-//                 const taxRate = parseFloat(line.taxPercent || taxInfo.rate) || 0;
-//                 totalTax += netAmount * (taxRate / 100);
-//             }
-//         });
-
-//         const otherCharges = parseFloat(formData.otherCharges) || 0;
-//         const netTotal = (subTotal - totalDiscount) + totalTax + otherCharges;
-
-//         return { subTotal, totalDiscount, totalTax, otherCharges, netTotal };
-//     }, [formData.lines, formData.otherCharges, taxes]);
-
-//     const handleSubmit = async (e) => {
-//         e.preventDefault();
-//         setLoading(true);
-//         setError('');
-
-//         const payload = {
-//             ...formData,
-//             lines: formData.lines.map(line => ({
-//                 ...line,
-//                 quantityNet: parseFloat(line.quantityNet) || 0,
-//                 rate: parseFloat(line.rate) || 0,
-//                 lineDiscount: parseFloat(line.lineDiscount) || 0,
-//             }))
-//         };
-
-//         try {
-//             const token = localStorage.getItem('token');
-//             const headers = { Authorization: `Bearer ${token}` };
-
-//             if (isEditing) {
-//                 await axios.put(`${API_URL}/purchases/invoices/${id}`, payload, { headers });
-//             } else {
-//                 await axios.post(`${API_URL}/purchases/invoices`, payload, { headers });
-//             }
-//             navigate('/purchase-dashboard/bills');
-//         } catch (err) {
-//             console.error("Failed to save invoice:", err);
-//             setError(err.response?.data?.message || "An error occurred while saving.");
-//         } finally {
-//             setLoading(false);
-//         }
-//     };
-
-//     if (loading && !isEditing) {
-//         return <div className="flex justify-center items-center h-64"><Loader className="animate-spin h-8 w-8 text-primary" /></div>;
-//     }
-
-//     return (
-//         <div className="bg-card p-6 rounded-xl shadow-sm">
-//             <div className="flex justify-between items-center mb-6">
-//                 <h1 className="text-2xl font-bold text-foreground">{isEditing ? `Edit Bill #${formData.billNumber}` : 'New Purchase Bill'}</h1>
-//                 <Link to="/purchase-dashboard/bills" className="btn-secondary flex items-center gap-2">
-//                     <ArrowLeft size={16} /> Back to List
-//                 </Link>
-//             </div>
-
-//             {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"><span className="block sm:inline">{error}</span></div>}
-
-//             <form onSubmit={handleSubmit} className="space-y-8">
-//                 {/* Header Section */}
-//                 <div className="p-4 border border-border rounded-lg">
-//                     <h2 className="text-lg font-semibold text-foreground mb-4">Invoice Details</h2>
-//                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-//                         <SelectField label="Supplier" name="supplierId" value={formData.supplierId} onChange={handleHeaderChange} required>
-//                             <option value="">Select Supplier</option>
-//                             {suppliers.map(s => <option key={s.id} value={s.id}>{s.companyName}</option>)}
-//                         </SelectField>
-//                         <InputField label="Bill Number" name="billNumber" value={formData.billNumber} onChange={handleHeaderChange} required />
-//                         <InputField label="Bill Date" name="billDate" type="date" value={formData.billDate} onChange={handleHeaderChange} required />
-//                         <InputField label="Due Date" name="dueDate" type="date" value={formData.dueDate} onChange={handleHeaderChange} />
-//                         <InputField label="Order Number" name="orderNumber" value={formData.orderNumber} onChange={handleHeaderChange} placeholder="Optional PO number" />
-//                         <SelectField label="Bill Type" name="billType" value={formData.billType} onChange={handleHeaderChange}>
-//                             <option value="Without Discount">Without Discount</option>
-//                             <option value="With Discount At Item Level">Item Level Discount</option>
-//                             <option value="With Discount At Bill Order Level">Bill Level Discount</option>
-//                         </SelectField>
-//                         <div className="lg:col-span-4">
-//                             <label htmlFor="notes" className="block text-sm font-medium text-foreground-muted">Notes</label>
-//                             <textarea id="notes" name="notes" value={formData.notes} onChange={handleHeaderChange} rows="3" className="input mt-1 bg-background-muted border-border"></textarea>
-//                         </div>
-//                     </div>
-//                 </div>
-
-//                 {/* Lines Section */}
-//                 <div className="p-4 border border-border rounded-lg">
-//                     <h2 className="text-lg font-semibold text-foreground mb-4">Items</h2>
-//                     <div className="overflow-x-auto">
-//                         <table className="min-w-full">
-//                             <thead className="bg-background-muted">
-//                                 <tr>
-//                                     <th className="th-cell text-left">#</th>
-//                                     <th className="th-cell text-left w-2/5">Item</th>
-//                                     <th className="th-cell text-right">Qty</th>
-//                                     <th className="th-cell text-left">Unit</th>
-//                                     <th className="th-cell text-right">Rate</th>
-//                                     <th className="th-cell text-left">Tax</th>
-//                                     <th className="th-cell text-right">Discount</th>
-//                                     <th className="th-cell text-right">Amount</th>
-//                                     <th className="th-cell"></th>
-//                                 </tr>
-//                             </thead>
-//                             <tbody>
-//                                 {formData.lines.map((line, index) => (
-//                                     <tr key={index} className="border-b border-border">
-//                                         <td className="td-cell">{line.lineNumber}</td>
-//                                         <td className="td-cell">
-//                                             <SelectField name="itemId" value={line.itemId} onChange={(e) => handleLineChange(index, e)} className="input text-sm">
-//                                                 <option value="">Select Item</option>
-//                                                 {rawMaterials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-//                                             </SelectField>
-//                                         </td>
-//                                         <td className="td-cell"><InputField type="number" name="quantityNet" value={line.quantityNet} onChange={(e) => handleLineChange(index, e)} className="input text-right text-sm" /></td>
-//                                         <td className="td-cell">
-//                                             <SelectField name="unitId" value={line.unitId} onChange={(e) => handleLineChange(index, e)} className="input text-sm">
-//                                                 <option value="">Unit</option>
-//                                                 {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-//                                             </SelectField>
-//                                         </td>
-//                                         <td className="td-cell"><InputField type="number" name="rate" value={line.rate} onChange={(e) => handleLineChange(index, e)} className="input text-right text-sm" /></td>
-//                                         <td className="td-cell">
-//                                             <SelectField name="taxId" value={line.taxId} onChange={(e) => handleLineChange(index, e)} className="input text-sm">
-//                                                 <option value="">Tax</option>
-//                                                 {taxes.map(t => <option key={t.id} value={t.id}>{t.code} ({t.rate}%)</option>)}
-//                                             </SelectField>
-//                                         </td>
-//                                         <td className="td-cell"><InputField type="number" name="lineDiscount" value={line.lineDiscount} onChange={(e) => handleLineChange(index, e)} className="input text-right text-sm" /></td>
-//                                         <td className="td-cell text-right font-medium">{((line.quantityNet || 0) * (line.rate || 0)).toFixed(2)}</td>
-//                                         <td className="td-cell">
-//                                             <button type="button" onClick={() => removeLine(index)} className="p-2 text-red-500 hover:bg-red-100 rounded-full">
-//                                                 <Trash2 size={16} />
-//                                             </button>
-//                                         </td>
-//                                     </tr>
-//                                 ))}
-//                             </tbody>
-//                         </table>
-//                     </div>
-//                     <button type="button" onClick={addLine} className="btn-secondary mt-4 flex items-center gap-2">
-//                         <Plus size={16} /> Add Line
-//                     </button>
-//                 </div>
-
-//                 {/* Totals Section */}
-//                 <div className="flex justify-end">
-//                     <div className="w-full max-w-sm space-y-2 text-sm">
-//                         <div className="flex justify-between">
-//                             <span className="text-foreground-muted">Subtotal:</span>
-//                             <span className="font-medium text-foreground">{totals.subTotal.toFixed(2)}</span>
-//                         </div>
-//                         <div className="flex justify-between">
-//                             <span className="text-foreground-muted">Total Discount:</span>
-//                             <span className="font-medium text-foreground">{totals.totalDiscount.toFixed(2)}</span>
-//                         </div>
-//                         <div className="flex justify-between">
-//                             <span className="text-foreground-muted">Total Tax:</span>
-//                             <span className="font-medium text-foreground">{totals.totalTax.toFixed(2)}</span>
-//                         </div>
-//                         <div className="flex justify-between items-center">
-//                             <span className="text-foreground-muted">Other Charges:</span>
-//                             <InputField type="number" name="otherCharges" value={formData.otherCharges || ''} onChange={handleHeaderChange} className="input text-right text-sm w-24 py-1" />
-//                         </div>
-//                         <div className="flex justify-between border-t border-border pt-2 mt-2">
-//                             <span className="text-lg font-bold text-foreground">Net Total:</span>
-//                             <span className="text-lg font-bold text-foreground">{totals.netTotal.toFixed(2)}</span>
-//                         </div>
-//                     </div>
-//                 </div>
-
-//                 {/* Actions */}
-//                 <div className="flex justify-end gap-4 pt-6 border-t border-border">
-//                     <button type="button" onClick={() => navigate('/purchase-dashboard/bills')} className="btn-secondary" disabled={loading}>
-//                         Cancel
-//                     </button>
-//                     <button type="submit" className="btn-primary flex items-center gap-2" disabled={loading}>
-//                         {loading ? <Loader className="animate-spin h-4 w-4" /> : <Save size={16} />}
-//                         {isEditing ? 'Update' : 'Save'} Bill
-//                     </button>
-//                 </div>
-//             </form>
-//         </div>
-//     );
-// };
-
-// export default PurchaseInvoiceForm;
-
-
-
-// import React, { useState, useEffect, useMemo } from 'react';
-// import { useNavigate, useParams, Link } from 'react-router-dom';
-// import axios from 'axios';
-// import { Plus, Trash2, Save, Loader, ArrowLeft } from 'lucide-react';
-
-// const API_URL = import.meta.env.VITE_API_BASE_URL; // e.g. http://localhost:8080 or http://localhost:8080/api base depending on your env
-
-// const InputField = ({ label, ...props }) => (
-//   <div>
-//     <label htmlFor={props.id || props.name} className="block text-sm font-medium text-foreground-muted">{label}</label>
-//     <input {...props} className="input mt-1 bg-background-muted border-border" />
-//   </div>
-// );
-
-// const SelectField = ({ label, children, ...props }) => (
-//   <div>
-//     <label htmlFor={props.id || props.name} className="block text-sm font-medium text-foreground-muted">{label}</label>
-//     <select {...props} className="input mt-1 bg-background-muted border-border">
-//       {children}
-//     </select>
-//   </div>
-// );
-
-// const PurchaseInvoiceForm = () => {
-//   const { id } = useParams();
-//   const navigate = useNavigate();
-//   const isEditing = Boolean(id);
-
-//   const [formData, setFormData] = useState({
-//     billLedger: 'Purchase',
-//     supplierId: '',
-//     billNumber: '',
-//     orderNumber: '',
-//     billDate: new Date().toISOString().split('T')[0],
-//     dueDate: '',
-//     billType: 'Without Discount',
-//     grossNetEnabled: false,
-//     notes: '',
-//     lines: [],
-//     attachments: [],
-//     otherCharges: 0,
-//     // server-calculated read-only fields (shown to user but not required to send)
-//     subTotal: 0,
-//     totalDiscount: 0,
-//     grossTotal: 0,
-//     totalTax: 0,
-//     netTotal: 0,
-//     createdBy: ''
-//   });
-
-//   // master data
-//   const [suppliers, setSuppliers] = useState([]);
-//   const [rawMaterials, setRawMaterials] = useState([]);
-//   const [units, setUnits] = useState([]);
-//   const [taxes, setTaxes] = useState([]);
-//   const [categories, setCategories] = useState([]);
-//   // cache subcategories per category id: { [categoryId]: [...] }
-//   const [subCategoriesByCategory, setSubCategoriesByCategory] = useState({});
-
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState('');
-
-//   useEffect(() => {
-//     const fetchMasterAndInvoice = async () => {
-//       setLoading(true);
-//       setError('');
-//       try {
-//         const token = localStorage.getItem('token');
-//         const headers = { Authorization: `Bearer ${token}` };
-
-//         // fetch master data in parallel (use /api/ prefix if your backend expects it)
-//         const [
-//           suppliersRes,
-//           materialsRes,
-//           unitsRes,
-//           taxesRes,
-//           categoriesRes
-//         ] = await Promise.all([
-//           axios.get(`${API_URL}/parties`, { headers, params: { type: 'SUPPLIER', page: 0, size: 500 } }),
-//           axios.get(`${API_URL}/production/raw-materials`, { headers, params: { page: 0, size: 500 } }),
-//           axios.get(`${API_URL}/production/units`, { headers, params: { page: 0, size: 500 } }),
-//           axios.get(`${API_URL}/production/taxes`, { headers, params: { page: 0, size: 500 } }),
-//           axios.get(`${API_URL}/production/categories`, { headers, params: { page: 0, size: 500 } })
-//         ]);
-
-//         setSuppliers(suppliersRes.data.content ?? suppliersRes.data ?? []);
-//         setRawMaterials(materialsRes.data.content ?? materialsRes.data ?? []);
-//         setUnits(unitsRes.data.content ?? unitsRes.data ?? []);
-//         setTaxes(taxesRes.data.content ?? taxesRes.data ?? []);
-//         setCategories(categoriesRes.data.content ?? categoriesRes.data ?? []);
-
-//         if (isEditing) {
-//           const invRes = await axios.get(`${API_URL}/purchases/invoices/${id}`, { headers });
-//           const inv = invRes.data;
-
-//           // populate formData - keep server calced totals read-only
-//           setFormData(prev => ({
-//             ...prev,
-//             billLedger: inv.billLedger ?? prev.billLedger,
-//             supplierId: inv.supplierId ?? '',
-//             billNumber: inv.billNumber ?? '',
-//             orderNumber: inv.orderNumber ?? '',
-//             billDate: inv.billDate ? new Date(inv.billDate).toISOString().split('T')[0] : '',
-//             dueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '',
-//             billType: inv.billType ?? prev.billType,
-//             grossNetEnabled: inv.grossNetEnabled ?? false,
-//             notes: inv.notes ?? '',
-//             otherCharges: inv.otherCharges ?? 0,
-//             subTotal: inv.subTotal ?? 0,
-//             totalDiscount: inv.totalDiscount ?? 0,
-//             grossTotal: inv.grossTotal ?? 0,
-//             totalTax: inv.totalTax ?? 0,
-//             netTotal: inv.netTotal ?? 0,
-//             createdBy: inv.createdBy ?? '',
-//             lines: (inv.lines || []).map(l => ({
-//               id: l.id,
-//               lineNumber: l.lineNumber,
-//               categoryId: l.categoryId ?? '',
-//               subCategoryId: l.subCategoryId ?? '',
-//               itemId: l.itemId ?? '',
-//               description: l.description ?? '',
-//               quantityGross: l.quantityGross ?? '',
-//               quantityNet: l.quantityNet ?? 1,
-//               unitId: l.unitId ?? '',
-//               rate: l.rate ?? 0,
-//               amount: l.amount ?? 0,
-//               taxId: l.taxId ?? '',
-//               taxPercent: l.taxPercent ?? '',
-//               lineDiscount: l.lineDiscount ?? 0
-//             })),
-//             attachments: (inv.attachments || []).map(a => ({
-//               id: a.id,
-//               fileName: a.fileName,
-//               filePath: a.filePath,
-//               uploadedBy: a.uploadedBy,
-//               uploadedAt: a.uploadedAt
-//             }))
-//           }));
-
-//           // preload subcategories for categories present in invoice (UX nicety)
-//           const catIds = Array.from(new Set((inv.lines || []).map(l => l.categoryId).filter(Boolean)));
-//           await Promise.all(catIds.map(cid => fetchSubCategoriesForCategory(cid)));
-//         }
-//       } catch (err) {
-//         console.error("Failed to fetch data:", err);
-//         setError("Failed to load necessary data. Check backend endpoints and token.");
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     fetchMasterAndInvoice();
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [id, isEditing]);
-
-//   // fetch sub-cats for a category and cache
-//   const fetchSubCategoriesForCategory = async (categoryId) => {
-//     if (!categoryId) return [];
-//     if (subCategoriesByCategory[categoryId]) return subCategoriesByCategory[categoryId];
-
-//     try {
-//       const token = localStorage.getItem('token');
-//       const headers = { Authorization: `Bearer ${token}` };
-//       const res = await axios.get(`${API_URL}/production/sub-categories`, { headers, params: { categoryId } });
-//       const data = res.data.content ?? res.data ?? [];
-//       setSubCategoriesByCategory(prev => ({ ...prev, [categoryId]: data }));
-//       return data;
-//     } catch (err) {
-//       console.warn("No sub-categories or failed to fetch for category", categoryId, err?.response?.status);
-//       setSubCategoriesByCategory(prev => ({ ...prev, [categoryId]: [] }));
-//       return [];
-//     }
-//   };
-
-//   const handleHeaderChange = (e) => {
-//     const { name, value, type, checked } = e.target;
-//     setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : (type === 'number' ? (value === '' ? '' : Number(value)) : value) }));
-//   };
-
-//   const handleLineChange = (index, e) => {
-//     const { name, value, type, checked } = e.target;
-//     const newLines = [...formData.lines];
-//     newLines[index] = {
-//       ...newLines[index],
-//       [name]: type === 'checkbox' ? checked : (type === 'number' ? (value === '' ? '' : Number(value)) : value)
-//     };
-//     setFormData(prev => ({ ...prev, lines: newLines }));
-//   };
-
-//   const addLine = () => {
-//     setFormData(prev => ({
-//       ...prev,
-//       lines: [
-//         ...prev.lines,
-//         {
-//           lineNumber: prev.lines.length + 1,
-//           categoryId: '',
-//           subCategoryId: '',
-//           itemId: '',
-//           description: '',
-//           quantityGross: '',
-//           quantityNet: 1,
-//           unitId: '',
-//           rate: 0,
-//           amount: 0,
-//           taxId: '',
-//           taxPercent: '',
-//           lineDiscount: 0
-//         }
-//       ]
-//     }));
-//   };
-
-//   const removeLine = (index) => {
-//     setFormData(prev => {
-//       const lines = prev.lines.filter((_, i) => i !== index).map((l, idx) => ({ ...l, lineNumber: idx + 1 }));
-//       return { ...prev, lines };
-//     });
-//   };
-
-//   const addAttachment = () => {
-//     setFormData(prev => ({
-//       ...prev,
-//       attachments: [
-//         ...(prev.attachments || []),
-//         { fileName: '', filePath: '', uploadedBy: prev.createdBy || '', uploadedAt: new Date().toISOString() }
-//       ]
-//     }));
-//   };
-
-//   const removeAttachment = (index) => {
-//     setFormData(prev => ({ ...prev, attachments: prev.attachments.filter((_, i) => i !== index) }));
-//   };
-
-//   const handleAttachmentChange = (index, e) => {
-//     const { name, value } = e.target;
-//     const atts = [...formData.attachments];
-//     atts[index] = { ...atts[index], [name]: value };
-//     setFormData(prev => ({ ...prev, attachments: atts }));
-//   };
-
-//   // compute client-side totals for preview; server will compute authoritative totals
-//   const totalsPreview = useMemo(() => {
-//     let subTotal = 0;
-//     let totalDiscount = 0;
-//     let totalTax = 0;
-
-//     formData.lines.forEach(line => {
-//       const q = parseFloat(line.quantityNet) || 0;
-//       const rate = parseFloat(line.rate) || 0;
-//       const discount = parseFloat(line.lineDiscount) || 0;
-//       const amount = parseFloat(line.amount) || (q * rate);
-//       const netAmount = Math.max(0, amount - discount);
-
-//       subTotal += amount;
-//       totalDiscount += discount;
-
-//       // get tax percent either from line override or tax master
-//       const taxMaster = taxes.find(t => Number(t.id) === Number(line.taxId));
-//       const taxRate = parseFloat(line.taxPercent ?? (taxMaster ? taxMaster.rate : 0)) || 0;
-//       if (!line.taxExempt && taxRate > 0) {
-//         totalTax += netAmount * (taxRate / 100);
-//       }
-//     });
-
-//     const otherCharges = parseFloat(formData.otherCharges) || 0;
-//     const gross = subTotal.subtract ? subTotal.subtract(totalDiscount) : (subTotal - totalDiscount); // safe for numbers
-//     const net = (subTotal - totalDiscount) + totalTax + otherCharges;
-//     return {
-//       subTotal,
-//       totalDiscount,
-//       totalTax,
-//       otherCharges,
-//       grossTotal: (subTotal - totalDiscount) + totalTax,
-//       netTotal: net
-//     };
-//   }, [formData.lines, formData.otherCharges, taxes]);
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-//     setError('');
-
-//     // Build payload matching PurPurchaseInvoiceRequest
-//     const payload = {
-//       billLedger: formData.billLedger,
-//       supplierId: formData.supplierId || null,
-//       billNumber: formData.billNumber || null,
-//       orderNumber: formData.orderNumber || null,
-//       billDate: formData.billDate,
-//       dueDate: formData.dueDate || null,
-//       billType: formData.billType,
-//       grossNetEnabled: !!formData.grossNetEnabled,
-//       notes: formData.notes || null,
-//       otherCharges: formData.otherCharges ? Number(formData.otherCharges) : null,
-//       createdBy: formData.createdBy || null,
-//       // lines -> PurPurchaseInvoiceItemRequest
-//       lines: (formData.lines || []).map(l => ({
-//         lineNumber: l.lineNumber,
-//         categoryId: l.categoryId || null,
-//         subCategoryId: l.subCategoryId || null,
-//         itemId: l.itemId || null,
-//         description: l.description || null,
-//         quantityGross: l.quantityGross !== '' ? (Number(l.quantityGross) || null) : null,
-//         quantityNet: l.quantityNet !== '' ? (Number(l.quantityNet) || 0) : 0,
-//         unitId: l.unitId || null,
-//         rate: l.rate !== '' ? (Number(l.rate) || 0) : 0,
-//         amount: l.amount !== '' ? (Number(l.amount) || null) : null,
-//         taxId: l.taxId || null,
-//         taxPercent: l.taxPercent !== '' ? (Number(l.taxPercent) || null) : null,
-//         lineDiscount: l.lineDiscount !== '' ? (Number(l.lineDiscount) || 0) : 0
-//       })),
-//       attachments: (formData.attachments || []).map(a => ({
-//         fileName: a.fileName || null,
-//         filePath: a.filePath || null,
-//         uploadedBy: a.uploadedBy || formData.createdBy || null,
-//         uploadedAt: a.uploadedAt || null
-//       }))
-//     };
-
-//     try {
-//       const token = localStorage.getItem('token');
-//       const headers = { Authorization: `Bearer ${token}` };
-
-//       if (isEditing) {
-//         await axios.put(`${API_URL}/purchases/invoices/${id}`, payload, { headers });
-//       } else {
-//         await axios.post(`${API_URL}/purchases/invoices`, payload, { headers });
-//       }
-
-//       navigate('/purchase-dashboard/bills');
-//     } catch (err) {
-//       console.error("Failed to save invoice:", err);
-//       setError(err.response?.data?.message || "An error occurred while saving.");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   if (loading && !isEditing) {
-//     return <div className="flex justify-center items-center h-64"><Loader className="animate-spin h-8 w-8 text-primary" /></div>;
-//   }
-
-//   return (
-//     <div className="bg-card p-6 rounded-xl shadow-sm">
-//       <div className="flex justify-between items-center mb-6">
-//         <h1 className="text-2xl font-bold text-foreground">{isEditing ? `Edit Bill #${formData.billNumber}` : 'New Purchase Bill'}</h1>
-//         <Link to="/purchase-dashboard/bills" className="btn-secondary flex items-center gap-2">
-//           <ArrowLeft size={16} /> Back to List
-//         </Link>
-//       </div>
-
-//       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"><span className="block sm:inline">{error}</span></div>}
-
-//       <form onSubmit={handleSubmit} className="space-y-8">
-//         {/* Header Section */}
-//         <div className="p-4 border border-border rounded-lg">
-//           <h2 className="text-lg font-semibold text-foreground mb-4">Invoice Details</h2>
-//           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-//             <SelectField label="Bill Ledger" name="billLedger" value={formData.billLedger} onChange={handleHeaderChange}>
-//               <option value="Purchase">Purchase</option>
-//               <option value="Purchase (Import)">Purchase (Import)</option>
-//             </SelectField>
-
-//             <SelectField label="Supplier" name="supplierId" value={formData.supplierId} onChange={handleHeaderChange} required>
-//               <option value="">Select Supplier</option>
-//               {suppliers.map(s => <option key={s.id} value={s.id}>{s.companyName || s.name || `${s.firstName || ''} ${s.lastName || ''}`}</option>)}
-//             </SelectField>
-
-//             <InputField label="Bill Number" name="billNumber" value={formData.billNumber} onChange={handleHeaderChange} required />
-//             <InputField label="Order Number (PO #)" name="orderNumber" value={formData.orderNumber} onChange={handleHeaderChange} />
-
-//             <InputField label="Bill Date" name="billDate" type="date" value={formData.billDate} onChange={handleHeaderChange} required />
-//             <InputField label="Due Date" name="dueDate" type="date" value={formData.dueDate} onChange={handleHeaderChange} />
-
-//             <SelectField label="Bill Type" name="billType" value={formData.billType} onChange={handleHeaderChange}>
-//               <option value="Without Discount">Without Discount</option>
-//               <option value="With Discount At Item Level">With Discount At Item Level</option>
-//               <option value="With Discount At Bill Order Level">With Discount At Bill Order Level</option>
-//             </SelectField>
-
-//             <div className="flex items-center gap-2">
-//               <input id="grossNetEnabled" name="grossNetEnabled" type="checkbox" checked={!!formData.grossNetEnabled} onChange={handleHeaderChange} />
-//               <label htmlFor="grossNetEnabled" className="text-sm">Enable Gross/Net Quantities</label>
-//             </div>
-
-//             <div className="lg:col-span-4">
-//               <label htmlFor="notes" className="block text-sm font-medium text-foreground-muted">Notes</label>
-//               <textarea id="notes" name="notes" value={formData.notes} onChange={handleHeaderChange} rows="3" className="input mt-1 bg-background-muted border-border"></textarea>
-//             </div>
-
-//             <InputField label="Created By" name="createdBy" value={formData.createdBy} onChange={handleHeaderChange} />
-//           </div>
-//         </div>
-
-//         {/* Lines */}
-//         <div className="p-4 border border-border rounded-lg">
-//           <h2 className="text-lg font-semibold text-foreground mb-4">Items</h2>
-//           <div className="overflow-x-auto">
-//             <table className="min-w-full">
-//               <thead className="bg-background-muted">
-//                 <tr>
-//                   <th className="th-cell">#</th>
-//                   <th className="th-cell w-48">Category</th>
-//                   <th className="th-cell w-48">Subcategory</th>
-//                   <th className="th-cell">Item / Description</th>
-//                   <th className="th-cell">Qty (Gross)</th>
-//                   <th className="th-cell">Qty (Net)</th>
-//                   <th className="th-cell">Unit</th>
-//                   <th className="th-cell">Rate</th>
-//                   <th className="th-cell">Amount</th>
-//                   <th className="th-cell">Tax</th>
-//                   <th className="th-cell">Tax %</th>
-//                   <th className="th-cell">Discount</th>
-//                   <th className="th-cell"></th>
-//                 </tr>
-//               </thead>
-//               <tbody>
-//                 {formData.lines.map((line, idx) => {
-//                   const amt = parseFloat(line.amount) || ((parseFloat(line.quantityNet) || 0) * (parseFloat(line.rate) || 0));
-//                   return (
-//                     <tr key={idx} className="border-b border-border">
-//                       <td className="td-cell">{line.lineNumber}</td>
-
-//                       <td className="td-cell">
-//                         <select
-//                           name="categoryId"
-//                           value={line.categoryId || ''}
-//                           onChange={async (e) => {
-//                             handleLineChange(idx, e);
-//                             const newCat = e.target.value;
-//                             await fetchSubCategoriesForCategory(newCat);
-//                             // clear subCategoryId when category changes
-//                             setFormData(prev => {
-//                               const lines = [...prev.lines];
-//                               lines[idx] = { ...lines[idx], subCategoryId: '' };
-//                               return { ...prev, lines };
-//                             });
-//                           }}
-//                           className="input text-sm"
-//                         >
-//                           <option value="">Category</option>
-//                           {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-//                         </select>
-//                       </td>
-
-//                       <td className="td-cell">
-//                         <select name="subCategoryId" value={line.subCategoryId || ''} onChange={(e) => handleLineChange(idx, e)} className="input text-sm">
-//                           <option value="">Subcategory</option>
-//                           {(subCategoriesByCategory[line.categoryId] || []).map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
-//                         </select>
-//                       </td>
-
-//                       <td className="td-cell">
-//                         <select name="itemId" value={line.itemId || ''} onChange={(e) => handleLineChange(idx, e)} className="input text-sm">
-//                           <option value="">Select Item</option>
-//                           {rawMaterials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-//                         </select>
-//                         <input name="description" value={line.description || ''} onChange={(e) => handleLineChange(idx, e)} placeholder="Description (optional)" className="input mt-1 text-sm" />
-//                       </td>
-
-//                       <td className="td-cell"><input type="number" name="quantityGross" value={line.quantityGross ?? ''} onChange={(e) => handleLineChange(idx, e)} className="input text-sm" /></td>
-//                       <td className="td-cell"><input type="number" name="quantityNet" value={line.quantityNet ?? ''} onChange={(e) => handleLineChange(idx, e)} className="input text-sm" /></td>
-
-//                       <td className="td-cell">
-//                         <select name="unitId" value={line.unitId || ''} onChange={(e) => handleLineChange(idx, e)} className="input text-sm">
-//                           <option value="">Unit</option>
-//                           {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-//                         </select>
-//                       </td>
-
-//                       <td className="td-cell"><input type="number" name="rate" value={line.rate ?? 0} onChange={(e) => handleLineChange(idx, e)} className="input text-right text-sm" /></td>
-
-//                       <td className="td-cell text-right font-medium">{(amt || 0).toFixed(4)}</td>
-
-//                       <td className="td-cell">
-//                         <select name="taxId" value={line.taxId || ''} onChange={(e) => handleLineChange(idx, e)} className="input text-sm">
-//                           <option value="">Tax</option>
-//                           {taxes.map(t => <option key={t.id} value={t.id}>{t.code} ({t.rate}%)</option>)}
-//                         </select>
-//                       </td>
-
-//                       <td className="td-cell"><input type="number" name="taxPercent" value={line.taxPercent ?? ''} onChange={(e) => handleLineChange(idx, e)} className="input text-right text-sm" placeholder="override %" /></td>
-
-//                       <td className="td-cell"><input type="number" name="lineDiscount" value={line.lineDiscount ?? 0} onChange={(e) => handleLineChange(idx, e)} className="input text-right text-sm" /></td>
-
-//                       <td className="td-cell">
-//                         <button type="button" onClick={() => removeLine(idx)} className="p-2 text-red-500 hover:bg-red-100 rounded-full">
-//                           <Trash2 size={16} />
-//                         </button>
-//                       </td>
-//                     </tr>
-//                   );
-//                 })}
-//               </tbody>
-//             </table>
-//           </div>
-
-//           <button type="button" onClick={addLine} className="btn-secondary mt-4 flex items-center gap-2">
-//             <Plus size={16} /> Add Line
-//           </button>
-//         </div>
-
-//         {/* Attachments */}
-//         <div className="p-4 border border-border rounded-lg">
-//           <h2 className="text-lg font-semibold text-foreground mb-4">Attachments</h2>
-//           <div className="space-y-3">
-//             {(formData.attachments || []).map((att, idx) => (
-//               <div key={idx} className="grid grid-cols-6 gap-2 items-center">
-//                 <input name="fileName" value={att.fileName || ''} onChange={(e) => handleAttachmentChange(idx, e)} placeholder="File name" className="input col-span-2" />
-//                 <input name="filePath" value={att.filePath || ''} onChange={(e) => handleAttachmentChange(idx, e)} placeholder="Path / URL" className="input col-span-3" />
-//                 <button type="button" onClick={() => removeAttachment(idx)} className="p-2 text-red-500 hover:bg-red-100 rounded-full"><Trash2 size={16} /></button>
-//                 <input name="uploadedBy" value={att.uploadedBy || ''} onChange={(e) => handleAttachmentChange(idx, e)} placeholder="Uploaded by" className="input col-span-2 mt-2" />
-//                 <input name="uploadedAt" value={att.uploadedAt || ''} onChange={(e) => handleAttachmentChange(idx, e)} type="datetime-local" className="input col-span-4 mt-2" />
-//               </div>
-//             ))}
-//           </div>
-//           <button type="button" onClick={addAttachment} className="btn-secondary mt-4 flex items-center gap-2">
-//             <Plus size={16} /> Add Attachment
-//           </button>
-//         </div>
-
-//         {/* Totals (server authoritative) */}
-//         <div className="flex justify-end">
-//           <div className="w-full max-w-sm space-y-2 text-sm">
-//             <div className="flex justify-between">
-//               <span className="text-foreground-muted">Subtotal:</span>
-//               <span className="font-medium text-foreground">{(formData.subTotal ?? totalsPreview.subTotal ?? 0).toFixed(4)}</span>
-//             </div>
-//             <div className="flex justify-between">
-//               <span className="text-foreground-muted">Total Discount:</span>
-//               <span className="font-medium text-foreground">{(formData.totalDiscount ?? totalsPreview.totalDiscount ?? 0).toFixed(4)}</span>
-//             </div>
-//             <div className="flex justify-between">
-//               <span className="text-foreground-muted">Total Tax:</span>
-//               <span className="font-medium text-foreground">{(formData.totalTax ?? totalsPreview.totalTax ?? 0).toFixed(4)}</span>
-//             </div>
-//             <div className="flex justify-between items-center">
-//               <span className="text-foreground-muted">Other Charges:</span>
-//               <InputField type="number" name="otherCharges" value={formData.otherCharges ?? 0} onChange={handleHeaderChange} className="input text-right text-sm w-24 py-1" />
-//             </div>
-//             <div className="flex justify-between">
-//               <span className="text-foreground-muted">Gross Total:</span>
-//               <span className="font-medium text-foreground">{(formData.grossTotal ?? totalsPreview.grossTotal ?? 0).toFixed(4)}</span>
-//             </div>
-//             <div className="flex justify-between border-t border-border pt-2 mt-2">
-//               <span className="text-lg font-bold text-foreground">Net Total:</span>
-//               <span className="text-lg font-bold text-foreground">{(formData.netTotal ?? totalsPreview.netTotal ?? 0).toFixed(4)}</span>
-//             </div>
-//           </div>
-//         </div>
-
-//         {/* Actions */}
-//         <div className="flex justify-end gap-4 pt-6 border-t border-border">
-//           <button type="button" onClick={() => navigate('/purchase-dashboard/bills')} className="btn-secondary" disabled={loading}>
-//             Cancel
-//           </button>
-//           <button type="submit" className="btn-primary flex items-center gap-2" disabled={loading}>
-//             {loading ? <Loader className="animate-spin h-4 w-4" /> : <Save size={16} />}
-//             {isEditing ? 'Update' : 'Save'} Bill
-//           </button>
-//         </div>
-//       </form>
-//     </div>
-//   );
-// };
-
-// export default PurchaseInvoiceForm;
-
-
-
-
-import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useParams, Link } from "react-router-dom";
-import axios from "axios";
-import { Plus, Trash2, Save, Loader, ArrowLeft } from "lucide-react";
-
-const API_URL = import.meta.env.VITE_API_BASE_URL || "";
-
-// Small input/select helpers to keep markup tidy
-const InputField = ({ label, ...props }) => (
-  <div>
-    <label className="block text-sm font-medium text-foreground-muted">{label}</label>
-    <input {...props} className="input mt-1 bg-background-muted border-border" />
-  </div>
-);
-const SelectField = ({ label, children, ...props }) => (
-  <div>
-    <label className="block text-sm font-medium text-foreground-muted">{label}</label>
-    <select {...props} className="input mt-1 bg-background-muted border-border">{children}</select>
-  </div>
-);
-
-/**
- * PurchaseInvoiceForm
- *
- * - Aligns fields to PurPurchaseInvoiceRequest and PurPurchaseInvoiceItemRequest DTOs.
- * - Lines include quantityGross, quantityNet, rate, amount, taxPercent, lineDiscount (matching backend types).
- * - Attachments: single "Add Attachment" button only — no upload endpoint call. Clicking it opens file picker,
- *   the frontend captures file.name and current timestamp and stores filePath as empty string. That metadata is
- *   sent to backend as part of invoice.create/update.
- */
 const PurchaseInvoiceForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const isEditing = Boolean(id);
-  const fileInputRef = useRef(null);
+  const isEdit = Boolean(id);
 
-  const [formData, setFormData] = useState({
-    billLedger: "Purchase",
-    supplierId: "",
-    billNumber: "",
-    orderNumber: "",
-    billDate: new Date().toISOString().split("T")[0],
-    dueDate: "",
-    billType: "Without Discount",
-    grossNetEnabled: false,
-    notes: "",
-    lines: [],
-    attachments: [], // each: { fileName, filePath, uploadedBy, uploadedAt }
-    otherCharges: 0,
-    createdBy: ""
-  });
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
+  // Master Data
   const [suppliers, setSuppliers] = useState([]);
-  const [rawMaterials, setRawMaterials] = useState([]);
-  const [units, setUnits] = useState([]);
-  const [taxes, setTaxes] = useState([]);
+  const [items, setItems] = useState([]); // Raw materials / Products
   const [categories, setCategories] = useState([]);
   const [subCategoriesByCategory, setSubCategoriesByCategory] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [uploadingIndicator, setUploadingIndicator] = useState(false); // small UI indicator for "processing" attachments
-  const [error, setError] = useState("");
+  const [units, setUnits] = useState([]);
+  const [taxes, setTaxes] = useState([]);
+
+  // Form State
+  const [formData, setFormData] = useState({
+    billLedger: 'Purchase',
+    supplierId: '',
+    billNumber: '',
+    orderNumber: '',
+    billDate: new Date().toISOString().slice(0, 10),
+    dueDate: new Date().toISOString().slice(0, 10),
+    billType: 'Without Discount',
+    grossNetEnabled: false,
+    notes: '',
+    otherCharges: 0,
+    template: 'Standard'
+  });
+
+  const [lines, setLines] = useState([
+    // Initial empty line
+    {
+      lineNumber: 1,
+      categoryId: '',
+      subCategoryId: '',
+      itemId: '',
+      description: '',
+      quantityGross: 0,
+      quantityNet: 0,
+      unitId: '',
+      rate: 0,
+      amount: 0,
+      taxId: '',
+      taxPercent: 0,
+      lineDiscount: 0,
+      discountPercent: 0
+    }
+  ]);
+
+  const [attachments, setAttachments] = useState([]); // File objects (new)
+  const [existingAttachments, setExistingAttachments] = useState([]); // From backend (edit mode)
+
+  // Totals
+  const [totals, setTotals] = useState({
+    subTotal: 0,
+    totalDiscount: 0,
+    grossTotal: 0,
+    totalTax: 0,
+    netTotal: 0
+  });
 
   useEffect(() => {
-    // load master data and invoice if editing
-    const load = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const token = localStorage.getItem("token");
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    fetchMasterData();
+    if (isEdit) {
+      loadInvoice();
+    }
+  }, [id]);
 
-        const [
-          suppliersRes,
-          materialsRes,
-          unitsRes,
-          taxesRes,
-          categoriesRes
-        ] = await Promise.all([
-          axios.get(`${API_URL}/parties`, { headers, params: { type: "SUPPLIER", page: 0, size: 500 } }),
-          axios.get(`${API_URL}/production/raw-materials`, { headers, params: { page: 0, size: 500 } }),
-          axios.get(`${API_URL}/production/units`, { headers, params: { page: 0, size: 500 } }),
-          axios.get(`${API_URL}/production/taxes`, { headers, params: { page: 0, size: 500 } }),
-          axios.get(`${API_URL}/production/categories`, { headers, params: { page: 0, size: 500 } })
-        ]);
+  useEffect(() => {
+    calculateTotals();
+  }, [lines, formData.otherCharges, formData.grossNetEnabled]);
 
-        setSuppliers(suppliersRes.data.content ?? suppliersRes.data ?? []);
-        setRawMaterials(materialsRes.data.content ?? materialsRes.data ?? []);
-        setUnits(unitsRes.data.content ?? unitsRes.data ?? []);
-        setTaxes(taxesRes.data.content ?? taxesRes.data ?? []);
-        setCategories(categoriesRes.data.content ?? categoriesRes.data ?? []);
+  const fetchMasterData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
 
-        if (isEditing) {
-          const invRes = await axios.get(`${API_URL}/purchases/invoices/${id}`, { headers });
-          const inv = invRes.data;
-          setFormData(prev => ({
-            ...prev,
-            billLedger: inv.billLedger ?? prev.billLedger,
-            supplierId: inv.supplierId ?? "",
-            billNumber: inv.billNumber ?? "",
-            orderNumber: inv.orderNumber ?? "",
-            billDate: inv.billDate ? new Date(inv.billDate).toISOString().split("T")[0] : prev.billDate,
-            dueDate: inv.dueDate ? new Date(inv.dueDate).toISOString().split("T")[0] : "",
-            billType: inv.billType ?? prev.billType,
-            grossNetEnabled: !!inv.grossNetEnabled,
-            notes: inv.notes ?? "",
-            otherCharges: inv.otherCharges ?? 0,
-            createdBy: inv.createdBy ?? "",
-            lines: (inv.lines || []).map(l => ({
-              id: l.id,
-              lineNumber: l.lineNumber,
-              categoryId: l.categoryId ?? "",
-              subCategoryId: l.subCategoryId ?? "",
-              itemId: l.itemId ?? "",
-              description: l.description ?? "",
-              quantityGross: l.quantityGross ?? "",
-              quantityNet: l.quantityNet ?? 1,
-              unitId: l.unitId ?? "",
-              rate: l.rate ?? 0,
-              amount: l.amount ?? ((l.quantityNet ?? 0) * (l.rate ?? 0)),
-              taxId: l.taxId ?? "",
-              taxPercent: l.taxPercent ?? "",
-              lineDiscount: l.lineDiscount ?? 0
-            })),
-            attachments: (inv.attachments || []).map(a => ({
-              id: a.id,
-              fileName: a.fileName,
-              filePath: a.filePath,
-              uploadedBy: a.uploadedBy,
-              uploadedAt: a.uploadedAt
-            }))
-          }));
+      const [suppRes, itemRes, catRes, unitRes, taxRes] = await Promise.all([
+        axios.get(`${API_URL}/parties`, { headers, params: { type: 'SUPPLIER', page: 0, size: 500 } }),
+        axios.get(`${API_URL}/production/raw-materials`, { headers, params: { page: 0, size: 1000 } }),
+        axios.get(`${API_URL}/production/categories`, { headers, params: { page: 0, size: 500 } }),
+        axios.get(`${API_URL}/production/units`, { headers, params: { page: 0, size: 500 } }),
+        axios.get(`${API_URL}/production/taxes`, { headers, params: { page: 0, size: 100 } })
+      ]);
 
-          // preload subcategories used by invoice lines (UX)
-          const catIds = Array.from(new Set((inv.lines || []).map(l => l.categoryId).filter(Boolean)));
-          await Promise.all(catIds.map(cid => fetchSubCategoriesForCategory(cid)));
-        }
-      } catch (err) {
-        console.error("Failed to load masters or invoice", err);
-        setError("Failed to load required data. Check backend endpoints/token.");
-      } finally {
-        setLoading(false);
-      }
-    };
+      setSuppliers(suppRes.data.content || suppRes.data || []);
+      setItems(itemRes.data.content || itemRes.data || []);
+      setCategories(catRes.data.content || catRes.data || []);
+      setUnits(unitRes.data.content || unitRes.data || []);
+      setTaxes(taxRes.data.content || taxRes.data || []);
 
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, isEditing]);
+    } catch (err) {
+      console.error('Failed to load master data', err);
+      // Don't block UI, but show warning potentially
+    }
+  };
 
-  // load subcategories for a category (cached)
   const fetchSubCategoriesForCategory = async (categoryId) => {
-    if (!categoryId) return [];
-    if (subCategoriesByCategory[categoryId]) return subCategoriesByCategory[categoryId];
+    if (!categoryId) return;
+    if (subCategoriesByCategory[categoryId]) return; 
     try {
-      const token = localStorage.getItem("token");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      const res = await axios.get(`${API_URL}/production/sub-categories`, { headers, params: { categoryId } });
-      const payload = res.data.content ?? res.data ?? [];
-      setSubCategoriesByCategory(prev => ({ ...prev, [categoryId]: payload }));
-      return payload;
+      const token = localStorage.getItem('token');
+      const headers = { Authorization: `Bearer ${token}` };
+      const res = await axios.get(`${API_URL}/production/sub-categories`, { headers, params: { categoryId, page:0, size:500 } });
+      setSubCategoriesByCategory(prev => ({ ...prev, [categoryId]: res.data.content || res.data || [] }));
     } catch (err) {
-      console.warn("Failed to fetch subcategories", categoryId, err);
-      setSubCategoriesByCategory(prev => ({ ...prev, [categoryId]: [] }));
-      return [];
+       console.error(err);
     }
   };
 
-  // handle top-level changes
-  const handleHeaderChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    const val = type === "checkbox" ? checked : (type === "number" ? (value === "" ? "" : Number(value)) : value);
-    setFormData(prev => ({ ...prev, [name]: val }));
-  };
-
-  // line changes: align to backend field names quantityGross/Net etc.
-  const handleLineChange = async (index, e) => {
-    const { name, value, type } = e.target;
-    setFormData(prev => {
-      const lines = [...prev.lines];
-      const rawVal = type === "number" ? (value === "" ? "" : Number(value)) : value;
-      lines[index] = { ...lines[index], [name]: rawVal };
-
-      // Auto compute amount when qty/rate/discount change (backend will be authoritative on save)
-      const qty = Number(lines[index].quantityNet || 0);
-      const rate = Number(lines[index].rate || 0);
-      const discount = Number(lines[index].lineDiscount || 0);
-      if (name !== "amount") {
-        lines[index].amount = Math.max(0, (qty * rate) - discount);
-      } else {
-        lines[index].amount = Number(rawVal || 0);
-      }
-
-      return { ...prev, lines };
-    });
-
-    // if category changed, fetch subcategories and clear subCategory
-    if (e.target.name === "categoryId") {
-      const catId = e.target.value;
-      await fetchSubCategoriesForCategory(catId);
-      setFormData(prev => {
-        const lines = [...prev.lines];
-        lines[index] = { ...lines[index], subCategoryId: "" };
-        return { ...prev, lines };
-      });
-    }
-  };
-
-  const addLine = () => {
-    setFormData(prev => ({
-      ...prev,
-      lines: [
-        ...prev.lines,
-        {
-          lineNumber: prev.lines.length + 1,
-          categoryId: "",
-          subCategoryId: "",
-          itemId: "",
-          description: "",
-          quantityGross: "",
-          quantityNet: 1,
-          unitId: "",
-          rate: 0,
-          amount: 0,
-          taxId: "",
-          taxPercent: "",
-          lineDiscount: 0
-        }
-      ]
-    }));
-  };
-  const removeLine = (index) => {
-    setFormData(prev => {
-      const lines = prev.lines.filter((_, i) => i !== index).map((l, idx) => ({ ...l, lineNumber: idx + 1 }));
-      return { ...prev, lines };
-    });
-  };
-
-  // Attachments: single Add Attachment button only.
-  // We do NOT call a server upload endpoint here. We only capture metadata:
-  // { fileName, filePath: '', uploadedBy, uploadedAt } and send to backend in invoice payload.
-  const onAddAttachmentClick = () => {
-    if (fileInputRef.current) fileInputRef.current.click();
-  };
-
-  const onFileSelected = (e) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const file = files[0];
-    setUploadingIndicator(true);
-    setTimeout(() => {
-      // simulate small delay for UX
-      const att = {
-        id: null,
-        fileName: file.name,
-        filePath: "", // intentionally empty because we are not uploading bytes here
-        uploadedBy: formData.createdBy || "",
-        uploadedAt: new Date().toISOString()
-      };
-      setFormData(prev => ({ ...prev, attachments: [...(prev.attachments || []), att] }));
-      setUploadingIndicator(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }, 300);
-  };
-
-  const removeAttachment = (idx) => {
-    setFormData(prev => ({ ...prev, attachments: prev.attachments.filter((_, i) => i !== idx) }));
-  };
-
-  // totals: compute preview client-side; backend will also compute authoritative totals on save
-  const totalsPreview = useMemo(() => {
-    let subTotal = 0;
-    let totalDiscount = 0;
-    let totalTax = 0;
-
-    (formData.lines || []).forEach(line => {
-      const qty = Number(line.quantityNet || 0);
-      const rate = Number(line.rate || 0);
-      const discount = Number(line.lineDiscount || 0);
-      const amount = Number(line.amount ?? (qty * rate));
-      const netAmount = Math.max(0, amount - discount);
-
-      subTotal += amount;
-      totalDiscount += discount;
-
-      // tax percent: use line.taxPercent override else use tax master rate
-      const masterTax = taxes.find(t => Number(t.id) === Number(line.taxId));
-      const taxRate = Number(line.taxPercent ?? (masterTax ? masterTax.rate : 0)) || 0;
-      if (taxRate > 0) totalTax += (netAmount * (taxRate / 100));
-    });
-
-    const otherCharges = Number(formData.otherCharges || 0);
-    const gross = (subTotal - totalDiscount) + totalTax;
-    const net = gross + otherCharges;
-
-    return {
-      subTotal,
-      totalDiscount,
-      totalTax,
-      otherCharges,
-      grossTotal: gross,
-      netTotal: net
-    };
-  }, [formData.lines, formData.otherCharges, taxes]);
-
-  const validate = () => {
-    if (!formData.billDate) return "Bill date required";
-    if (!formData.supplierId) return "Supplier required";
-    return null;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const v = validate();
-    if (v) { setError(v); return; }
+  const loadInvoice = async () => {
     setLoading(true);
-    setError("");
-
-    // Build payload matching backend DTOs
-    const payload = {
-      billLedger: formData.billLedger,
-      supplierId: formData.supplierId || null,
-      billNumber: formData.billNumber || null,
-      orderNumber: formData.orderNumber || null,
-      billDate: formData.billDate,
-      dueDate: formData.dueDate || null,
-      billType: formData.billType,
-      grossNetEnabled: !!formData.grossNetEnabled,
-      notes: formData.notes || null,
-      otherCharges: formData.otherCharges ? Number(formData.otherCharges) : 0,
-      createdBy: formData.createdBy || null,
-      lines: (formData.lines || []).map(l => ({
-        lineNumber: l.lineNumber,
-        categoryId: l.categoryId || null,
-        subCategoryId: l.subCategoryId || null,
-        itemId: l.itemId || null,
-        description: l.description || null,
-        quantityGross: l.quantityGross !== "" ? Number(l.quantityGross) : null,
-        quantityNet: l.quantityNet !== "" ? Number(l.quantityNet) : 0,
-        unitId: l.unitId || null,
-        rate: l.rate !== "" ? Number(l.rate) : 0,
-        amount: l.amount !== "" ? Number(l.amount) : null,
-        taxId: l.taxId || null,
-        taxPercent: l.taxPercent !== "" ? Number(l.taxPercent) : null,
-        lineDiscount: l.lineDiscount !== "" ? Number(l.lineDiscount) : 0
-      })),
-      attachments: (formData.attachments || []).map(a => ({
-        fileName: a.fileName || null,
-        filePath: a.filePath || null,
-        uploadedBy: a.uploadedBy || formData.createdBy || null,
-        uploadedAt: a.uploadedAt || null
-      }))
-    };
-
     try {
-      const token = localStorage.getItem("token");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-      if (isEditing) {
-        await axios.put(`${API_URL}/purchases/invoices/${id}`, payload, { headers });
-      } else {
-        await axios.post(`${API_URL}/purchases/invoices`, payload, { headers });
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`${API_URL}/purchases/invoices/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const inv = res.data;
+
+      setFormData({
+        billLedger: inv.billLedger || 'Purchase',
+        supplierId: inv.supplierId || '',
+        billNumber: inv.billNumber || '',
+        orderNumber: inv.orderNumber || '',
+        billDate: inv.billDate,
+        dueDate: inv.dueDate,
+        billType: inv.billType || 'Without Discount',
+        grossNetEnabled: inv.grossNetEnabled || false,
+        notes: inv.notes || '',
+        otherCharges: inv.otherCharges || 0,
+        template: inv.template || 'Standard'
+      });
+
+      if (inv.lines) {
+        setLines(inv.lines.map(l => ({
+          ...l,
+          // Ensure fields exist for inputs
+          quantityGross: l.quantityGross || 0,
+          quantityNet: l.quantityNet || 0,
+          rate: l.rate || 0,
+          amount: l.amount || 0,
+          taxPercent: l.taxPercent || 0,
+          lineDiscount: l.lineDiscount || 0
+        })));
+        
+        // Prefetch subcategories for existing lines
+        const catIds = Array.from(new Set(inv.lines.map(l => l.categoryId).filter(Boolean)));
+        catIds.forEach(cid => fetchSubCategoriesForCategory(cid));
       }
-      navigate("/purchase-dashboard/bills");
+
+      if (inv.attachments) {
+        setExistingAttachments(inv.attachments);
+      }
+
     } catch (err) {
-      console.error("Failed to save invoice", err);
-      setError(err?.response?.data?.message || "Failed to save invoice.");
+      console.error('Failed to load invoice', err);
+      setError('Could not load invoice details.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading && !isEditing) {
-    return <div className="flex justify-center items-center h-64"><Loader className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
+  const handleLineChange = (index, field, value) => {
+    const newLines = [...lines];
+    const line = { ...newLines[index] };
+
+    line[field] = value;
+
+    if (field === 'categoryId') {
+       fetchSubCategoriesForCategory(value);
+       line.subCategoryId = ''; // Reset subcat
+    }
+
+    // Auto-populate related fields
+    if (field === 'itemId') {
+      const selectedItem = items.find(i => i.id == value);
+      if (selectedItem) {
+        line.description = selectedItem.name; // or description
+        line.rate = selectedItem.price || 0; // if available
+        line.unitId = selectedItem.unit?.id || '';
+        line.categoryId = selectedItem.category?.id || selectedItem.categoryId || '';
+        line.subCategoryId = selectedItem.subCategory?.id || selectedItem.subCategoryId || '';
+        // tax?
+      }
+    }
+
+    if (field === 'taxId') {
+      const tax = taxes.find(t => t.id == value);
+      line.taxPercent = tax ? tax.rate : 0;
+    }
+
+    // Calculation per line
+    const qty = formData.grossNetEnabled ? (Number(line.quantityNet) || Number(line.quantityGross) || 0) : (Number(line.quantityGross) || 0); // Default to Gross if Net disabled logic? Or just one field
+    // Actually if disabled, we probably just use quantityGross as the main "Quantity" input
+    // Let's standardize: If grossNetEnabled, assume Net is the billing qty? Or Gross? Usually Net.
+    // If NOT enabled, we hide Net column, use Gross column as "Quantity".
+    
+    const quantity = formData.grossNetEnabled && line.quantityNet > 0 ? Number(line.quantityNet) : Number(line.quantityGross);
+    const rate = Number(line.rate) || 0;
+    const discount = Number(line.lineDiscount) || 0;
+
+    let amount = (quantity * rate) - discount;
+    if (amount < 0) amount = 0;
+    
+    line.amount = amount;
+
+    newLines[index] = line;
+    setLines(newLines);
+  };
+
+  const addLine = () => {
+    setLines([...lines, {
+      lineNumber: lines.length + 1,
+      categoryId: '', subCategoryId: '', itemId: '', description: '',
+      quantityGross: 0, quantityNet: 0, unitId: '', rate: 0, amount: 0,
+      taxId: '', taxPercent: 0, lineDiscount: 0, discountPercent: 0
+    }]);
+  };
+
+  const removeLine = (index) => {
+    if (lines.length > 1) {
+      const newLines = lines.filter((_, i) => i !== index);
+      // re-index
+      newLines.forEach((l, i) => l.lineNumber = i + 1);
+      setLines(newLines);
+    }
+  };
+
+  const calculateTotals = () => {
+    let sub = 0;
+    let disc = 0;
+    let tax = 0;
+
+    lines.forEach(l => {
+      sub += Number(l.amount) || 0;
+      disc += Number(l.lineDiscount) || 0;
+      
+      const taxP = Number(l.taxPercent) || 0;
+      const taxVal = (Number(l.amount) || 0) * (taxP / 100);
+      tax += taxVal;
+    });
+
+    // If bill type computes discount differently, adjust here. 
+    // Currently assuming line-level discount is summed.
+
+    const other = Number(formData.otherCharges) || 0;
+    
+    // Note: Backend logic: Subtotal = sum of amounts.
+    // net = sub - totalDiscount (if not line level?) Wait.
+    // Backend service: 
+    // subTotal += amount 
+    // totalDiscount += lineDiscount
+    // totalTax += taxValue
+    // grossTotal = sub - disc + tax + other.
+    
+    // Wait, amount = (qty * rate) - discount. 
+    // So subTotal (sum of amounts) ALREADY has discount deducted?
+    // Let's check backend mapLineRequest:
+    // amount = qty*rate - discount.
+    // So 'amount' is the post-discount value.
+    // Backend computeTotals: 
+    // subTotal += amount. 
+    // net = subTotal - totalDiscount?? No.
+    // Backend: net = subTotal.subtract(totalDiscount)...
+    // If 'amount' already deducted discount, we shouldn't deduct it again.
+    
+    // Correction: Backend mapLineRequest logic:
+    // li.setAmount( ((qty*rate) - discount).max(0) )
+    // computeTotals:
+    // subTotal += amount (net of discount)
+    // totalDiscount += discount
+    // net = subTotal - totalDiscount ??? THIS WOULD DEDUCT TWICE if subTotal is sum of net amounts.
+    
+    // Let's re-read backend code carefully.
+    // mapLineRequest: li.setAmount( ... subtract(discount) )
+    // computeTotals: subTotal.add(amount). 
+    // net = subTotal.subtract(totalDiscount) ...
+    
+    // YES, THE BACKEND SEEMS TO DEDUCT DISCOUNT TWICE if 'amount' is stored as net-of-discount.
+    // Or maybe 'amount' is gross amount?
+    // Backend: "BigDecimal amount = ... multiply(rate).subtract(discount)" -> amount IS net of discount.
+    // Then computeTotals: "net = subTotal.subtract(totalDiscount)..." 
+    // This looks like a backend bug provided by user code.
+    // BUT I cannot change backend service.
+    // OR maybe I misinterpreted.
+    
+    // If I send 'amount' from frontend, backend uses it.
+    // If I calculate 'amount' as (Qty * Rate) [Gross Amount] in frontend, then backend logic works?
+    // Backend mapLineRequest: "if (li.getAmount() == null) { ... setAmount ... subtract(discount) }"
+    // So if I send amount, it uses it.
+    
+    // IF I want correct math:
+    // Let's say Qty 10, Rate 10 = 100. Discount 10.
+    // If I send Amount = 100 (Gross).
+    // Backend: Returns Amount=100.
+    // Compute: Sub = 100. Disc = 10. Net = 100 - 10 = 90. Correct.
+    
+    // So, 'Amount' field in Item Line should probably be GROSS AMOUNT (Qty * Rate) before discount?
+    // But usually 'Amount' column in table shows the final line amount.
+    // If I display Net Line Amount (90), and send 90.
+    // Backend: Sub=90. Disc=10. Net = 90 - 10 = 80. WRONG.
+    
+    // Conclusion: For this backend to work, 'Amount' in the line item must be the GROSS amount (Qty * Rate) without discount.
+    // OR 'amount' is net, and `computeTotals` logic is just flawed but I have to live with it?
+    
+    // Let's check backend `computeTotals` again.
+    // net = subTotal.subtract(totalDiscount).add(totalTax)...
+    // So if subTotal is sum of line amounts, then line amount MUST NOT have discount deducted yet.
+    
+    // SO: Frontend Line Amount = Qty * Rate.
+    // Discount is separate.
+    
+    let subTotalVal = 0;
+    lines.forEach(l => {
+       const qty = formData.grossNetEnabled && l.quantityNet > 0 ? Number(l.quantityNet) : Number(l.quantityGross);
+       const r = Number(l.rate) || 0;
+       subTotalVal += (qty * r);
+    });
+
+    // Re-calculate totals based on this assumption
+    sub = subTotalVal;
+    
+    // Calculate tax on (Qty*Rate - Discount)? Or on Qty*Rate?
+    // Usually VAT is on Net.
+    // Backend: taxValue = amount.multiply(taxPercent)
+    // If amount is Gross, Tax is on Gross. That's usually wrong if there's discount.
+    
+    // This backend logic is tricky. 
+    // "taxValue = amount.multiply(taxPercent)"
+    // If 'amount' is Gross, tax is on Gross.
+    
+    // Let's look at the User Screenshots.
+    // Amount column. 
+    // We have "Rate" and "Amount".
+    // "Discount" is only showing if enabled?
+    // Screenshot 4 shows "With Item Level Discount" selected. But column headers don't show "Discount" column? 
+    // Wait, I don't see Discount column in screenshots even when "With Discount" is selected?
+    // Ah, maybe the screenshots are just 'start' state.
+    
+    // I will implement standard behavior:
+    // Line Amount = (Qty * Rate) - Discount.
+    // But to satisfy backend `computeTotals` doing double deduction, I might need to send specific values.
+    // Actually, I'll trust my frontend calculation for display.
+    // And for backend, I'll send what it expects. 
+    
+    // Let's try to act smart. I will send 'amount' as (Qty*Rate) - Discount.
+    // And I will NOT send 'lineDiscount' if I can avoid the double dip? 
+    // But backend calculates totalDiscount from lineDiscount.
+    
+    // Okay, I'll stick to: Line Amount = (Qty * Rate). (Gross).
+    // Display that in the table.
+    // Then Footer Total Discount reduces it.
+    // That seems most consistent with `subTotal - discount` logic in backend.
+    
+    setTotals({
+      subTotal: sub,
+      totalDiscount: disc,
+      totalTax: tax,
+      grossTotal: sub - disc + tax, 
+      netTotal: sub - disc + tax + other
+    });
+  };
+
+  const handleFileChange = (e) => {
+    if (e.target.files) {
+      setAttachments([...attachments, ...Array.from(e.target.files)]);
+    }
+  };
+
+  const removeAttachment = (index) => {
+    setAttachments(attachments.filter((_, i) => i !== index));
+  };
+
+  const removeExistingAttachment = (attId) => {
+    // We can't delete directly via API here easily without endpoint or custom logic
+    // But usually we just filter it out from display or have a delete API.
+    // Since backend update clears attachments if we send new list?
+    // Backend update: 
+    // "if (req.getAttachments() != null) { invoice.getAttachments().clear(); ... add all from req }"
+    // So we just need to send the list of 'kept' attachments in the JSON body.
+    setExistingAttachments(existingAttachments.filter(a => a.id !== attId));
+  };
+
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    setError('');
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Build Request JSON
+      const requestData = {
+        ...formData,
+        lines: lines.map(l => ({
+           ...l,
+           // Ensure numerics
+           quantityGross: Number(l.quantityGross),
+           quantityNet: Number(l.quantityNet),
+           rate: Number(l.rate),
+           // Be careful with Amount logic discussed above
+           amount: (formData.grossNetEnabled && l.quantityNet > 0 ? l.quantityNet : l.quantityGross) * l.rate, 
+           lineDiscount: Number(l.lineDiscount),
+           taxPercent: Number(l.taxPercent)
+        })),
+        attachments: existingAttachments.map(a => ({
+           fileName: a.fileName,
+           filePath: a.filePath,
+           uploadedAt: a.uploadedAt,
+           uploadedBy: a.uploadedBy
+        }))
+      };
+
+      const payload = new FormData();
+      payload.append('request', new Blob([JSON.stringify(requestData)], { type: 'application/json' }));
+      
+      attachments.forEach(file => {
+        payload.append('attachments', file);
+      });
+
+      if (isEdit) {
+        await axios.put(`${API_URL}/purchases/invoices/${id}`, payload, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+      } else {
+        await axios.post(`${API_URL}/purchases/invoices`, payload, {
+           headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+      }
+
+      navigate('/purchase-dashboard/bills');
+    } catch (err) {
+      console.error('Submit failed', err);
+      setError('Failed to save invoice. ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) return <div className="flex justify-center p-10"><Loader className="animate-spin text-blue-500" /></div>;
 
   return (
-    <div className="bg-card p-6 rounded-xl shadow-sm">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{isEditing ? `Edit Bill #${formData.billNumber}` : "New Purchase Bill"}</h1>
-        <Link to="/purchase-dashboard/bills" className="btn-secondary flex items-center gap-2">
-          <ArrowLeft size={16} /> Back to List
-        </Link>
-      </div>
+    <div className="p-6 max-w-[1600px] mx-auto bg-slate-50 min-h-screen font-sans text-sm">
+       {/* Breadcrumb */}
+       <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+          <Link to="/" className="hover:text-blue-600">Home</Link> &gt; 
+          <Link to="/purchase-dashboard/bills" className="hover:text-blue-600">Purchase</Link> &gt;
+          <span className="text-slate-800 font-semibold">{isEdit ? 'Edit Bill' : 'Add New Bill'}</span>
+       </div>
 
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+       {/* Header Title */}
+       <div className="bg-sky-500 text-white px-4 py-3 text-lg font-medium shadow-sm mb-6 rounded-t">
+          {isEdit ? 'Edit Bill' : 'Add New Bill'}
+       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Header */}
-        <div className="p-4 border border-border rounded-lg">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Invoice Details</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <SelectField label="Bill Ledger" name="billLedger" value={formData.billLedger} onChange={handleHeaderChange}>
-              <option value="Purchase">Purchase</option>
-            </SelectField>
+       <form onSubmit={handleSubmit} className="bg-white shadow-sm border rounded-b p-6 space-y-6">
+          {error && <div className="p-3 bg-red-100 text-red-700 rounded text-sm">{error}</div>}
 
-            <SelectField label="Supplier" name="supplierId" value={formData.supplierId} onChange={handleHeaderChange}>
-              <option value="">Select Supplier</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.companyName || s.name || `${s.firstName || ""} ${s.lastName || ""}`}</option>)}
-            </SelectField>
-
-            <InputField label="Bill Number" name="billNumber" value={formData.billNumber} onChange={handleHeaderChange} />
-            <InputField label="Order Number (PO #)" name="orderNumber" value={formData.orderNumber} onChange={handleHeaderChange} />
-
-            <InputField label="Bill Date" name="billDate" type="date" value={formData.billDate} onChange={handleHeaderChange} />
-            <InputField label="Due Date" name="dueDate" type="date" value={formData.dueDate} onChange={handleHeaderChange} />
-
-            <SelectField label="Bill Type" name="billType" value={formData.billType} onChange={handleHeaderChange}>
-              <option value="Without Discount">Without Discount</option>
-              <option value="With Discount At Item Level">With Discount At Item Level</option>
-              <option value="With Discount At Bill Order Level">With Discount At Bill Order Level</option>
-            </SelectField>
-
-            <div className="flex items-center gap-2">
-              <input id="grossNetEnabled" name="grossNetEnabled" type="checkbox" checked={!!formData.grossNetEnabled} onChange={handleHeaderChange} />
-              <label htmlFor="grossNetEnabled" className="text-sm">Enable Gross/Net Quantities</label>
-            </div>
-
-            <div className="lg:col-span-4">
-              <label className="block text-sm font-medium text-foreground-muted">Notes</label>
-              <textarea name="notes" value={formData.notes} onChange={handleHeaderChange} rows={3} className="input mt-1 bg-background-muted border-border" />
-            </div>
-
-            <InputField label="Created By" name="createdBy" value={formData.createdBy} onChange={handleHeaderChange} />
-          </div>
-        </div>
-
-        {/* Lines */}
-        <div className="p-4 border border-border rounded-lg">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Items</h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-background-muted">
-                <tr>
-                  <th className="th-cell">#</th>
-                  <th className="th-cell">Category</th>
-                  <th className="th-cell">Subcategory</th>
-                  <th className="th-cell">Item / Description</th>
-                  <th className="th-cell">Qty (Gross)</th>
-                  <th className="th-cell">Qty (Net)</th>
-                  <th className="th-cell">Unit</th>
-                  <th className="th-cell">Rate</th>
-                  <th className="th-cell">Amount</th>
-                  <th className="th-cell">Tax</th>
-                  <th className="th-cell">Tax %</th>
-                  <th className="th-cell">Discount</th>
-                  <th className="th-cell"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {formData.lines.map((line, idx) => {
-                  const computedAmount = Number(line.amount ?? (Number(line.quantityNet || 0) * Number(line.rate || 0)));
-                  return (
-                    <tr key={idx} className="border-b border-border">
-                      <td className="td-cell">{line.lineNumber}</td>
-
-                      <td className="td-cell">
-                        <select
-                          name="categoryId"
-                          value={line.categoryId || ""}
-                          onChange={async (e) => {
-                            await handleLineChange(idx, e);
-                            await fetchSubCategoriesForCategory(e.target.value);
-                          }}
-                          className="input text-sm"
-                        >
-                          <option value="">Category</option>
-                          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                      </td>
-
-                      <td className="td-cell">
-                        <select name="subCategoryId" value={line.subCategoryId || ""} onChange={(e) => handleLineChange(idx, e)} className="input text-sm">
-                          <option value="">Subcategory</option>
-                          {(subCategoriesByCategory[line.categoryId] || []).map(sc => <option key={sc.id} value={sc.id}>{sc.name}</option>)}
-                        </select>
-                      </td>
-
-                      <td className="td-cell">
-                        <select name="itemId" value={line.itemId || ""} onChange={(e) => handleLineChange(idx, e)} className="input text-sm">
-                          <option value="">Select Item</option>
-                          {rawMaterials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                        </select>
-                        <input name="description" value={line.description || ""} onChange={(e) => handleLineChange(idx, e)} placeholder="Description (optional)" className="input mt-1 text-sm" />
-                      </td>
-
-                      <td className="td-cell"><input type="number" name="quantityGross" value={line.quantityGross ?? ""} onChange={(e) => handleLineChange(idx, e)} className="input text-sm" /></td>
-                      <td className="td-cell"><input type="number" name="quantityNet" value={line.quantityNet ?? ""} onChange={(e) => handleLineChange(idx, e)} className="input text-sm" /></td>
-
-                      <td className="td-cell">
-                        <select name="unitId" value={line.unitId || ""} onChange={(e) => handleLineChange(idx, e)} className="input text-sm">
-                          <option value="">Unit</option>
-                          {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                        </select>
-                      </td>
-
-                      <td className="td-cell"><input type="number" name="rate" value={line.rate ?? 0} onChange={(e) => handleLineChange(idx, e)} className="input text-right text-sm" /></td>
-
-                      <td className="td-cell text-right font-medium">{(computedAmount || 0).toFixed(4)}</td>
-
-                      <td className="td-cell">
-                        <select name="taxId" value={line.taxId || ""} onChange={(e) => handleLineChange(idx, e)} className="input text-sm">
-                          <option value="">Tax</option>
-                          {taxes.map(t => <option key={t.id} value={t.id}>{t.code} ({t.rate}%)</option>)}
-                        </select>
-                      </td>
-
-                      <td className="td-cell"><input type="number" name="taxPercent" value={line.taxPercent ?? ""} onChange={(e) => handleLineChange(idx, e)} className="input text-right text-sm" placeholder="override %" /></td>
-
-                      <td className="td-cell"><input type="number" name="lineDiscount" value={line.lineDiscount ?? 0} onChange={(e) => handleLineChange(idx, e)} className="input text-right text-sm" /></td>
-
-                      <td className="td-cell">
-                        <button type="button" onClick={() => removeLine(idx)} className="p-2 text-red-500 hover:bg-red-100 rounded-full">
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <button type="button" onClick={addLine} className="btn-secondary mt-4 flex items-center gap-2"><Plus size={16} /> Add Line</button>
-        </div>
-
-        {/* Attachments - single button only */}
-        <div className="p-4 border border-border rounded-lg">
-          <h2 className="text-lg font-semibold text-foreground mb-4">Attachments</h2>
-
-          <div className="flex justify-between items-center mb-3">
-            <div className="text-sm text-foreground-muted">{(formData.attachments || []).length} uploaded</div>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={onAddAttachmentClick} className="btn-secondary flex items-center gap-2" disabled={uploadingIndicator}>
-                <Plus /> Add Attachment
-              </button>
-              {uploadingIndicator && <span className="text-sm">Processing...</span>}
-            </div>
-          </div>
-
-          {/* hidden file input to capture file name only */}
-          <input ref={fileInputRef} type="file" className="hidden" onChange={onFileSelected} />
-
-          <div className="space-y-2">
-            {formData.attachments.length === 0 && <div className="text-sm text-foreground-muted">No attachments uploaded.</div>}
-            {formData.attachments.map((att, idx) => (
-              <div key={idx} className="flex items-center justify-between gap-4 border p-2 rounded">
-                <div>
-                  <div className="font-medium">{att.fileName}</div>
-                  <div className="text-xs text-foreground-muted">{att.uploadedAt ? new Date(att.uploadedAt).toLocaleString() : ""}</div>
-                  {att.filePath && <div className="text-xs"><a className="text-primary underline" href={att.filePath} target="_blank" rel="noreferrer">Open</a></div>}
+          {/* Top Section Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+             
+             {/* Bill Ledger */}
+             <div className="col-span-2 md:col-span-4 lg:col-span-4">
+                <label className="block text-xs font-bold text-slate-700 mb-1">Bill Ledgers</label>
+                <div className="relative">
+                   <select 
+                     className="w-full border border-gray-300 rounded px-3 py-2 bg-gray-50 focus:outline-none focus:border-sky-500"
+                     value={formData.billLedger}
+                     onChange={e => setFormData({...formData, billLedger: e.target.value})}
+                   >
+                     <option value="Purchase">Purchase</option>
+                     <option value="Purchase Import">Purchase (Import)</option>
+                   </select>
                 </div>
-                <div><button type="button" onClick={() => removeAttachment(idx)} className="p-2 text-red-500 rounded"><Trash2 /></button></div>
+             </div>
+
+             {/* Customer Name */}
+             <div className="col-span-2 md:col-span-4 lg:col-span-4">
+                <label className="block text-xs font-bold text-slate-700 mb-1">Supplier Name</label>
+                <div className="flex gap-2">
+                   <select 
+                      className="flex-1 border border-gray-300 rounded px-3 py-2 bg-white focus:outline-none focus:border-sky-500"
+                      value={formData.supplierId}
+                      onChange={e => setFormData({...formData, supplierId: e.target.value})}
+                   >
+                      <option value="">Type Here...</option>
+                      {suppliers.map(s => (
+                        <option key={s.id} value={s.id}>{s.name || s.companyName}</option>
+                      ))}
+                   </select>
+                   <div className="px-3 py-2 bg-sky-500 text-white font-bold rounded">AED</div>
+                </div>
+             </div>
+
+             {/* Bill Number */}
+             <div className="col-span-2">
+                 <label className="block text-xs font-bold text-slate-700 mb-1">Bill</label>
+                 <input 
+                   type="text" 
+                   className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-sky-500"
+                   value={formData.billNumber}
+                   onChange={e => setFormData({...formData, billNumber: e.target.value})}
+                 />
+             </div>
+
+             {/* Order Number */}
+             <div className="col-span-2">
+                 <label className="block text-xs font-bold text-slate-700 mb-1">Order Number</label>
+                 <input 
+                   type="text" 
+                   className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-sky-500"
+                   value={formData.orderNumber}
+                   onChange={e => setFormData({...formData, orderNumber: e.target.value})}
+                 />
+             </div>
+
+             {/* Dates */}
+             <div>
+                 <label className="block text-xs font-bold text-slate-700 mb-1">Bill Date</label>
+                 <input 
+                   type="date"
+                   className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-sky-500"
+                   value={formData.billDate}
+                   onChange={e => setFormData({...formData, billDate: e.target.value})}
+                 />
+             </div>
+             <div>
+                 <label className="block text-xs font-bold text-slate-700 mb-1">Due Date</label>
+                 <input 
+                   type="date"
+                   className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:border-sky-500"
+                   value={formData.dueDate}
+                   onChange={e => setFormData({...formData, dueDate: e.target.value})}
+                 />
+             </div>         
+          </div>
+
+          {/* Bill Type & Toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-t border-b bg-gray-50 px-4 -mx-6">
+             <div className="flex items-center gap-2">
+                <label className="text-xs font-bold text-slate-700">Bill Type</label>
+                <select 
+                   className="border border-gray-300 rounded px-2 py-1 text-xs focus:outline-none"
+                   value={formData.billType}
+                   onChange={e => setFormData({...formData, billType: e.target.value})}
+                >
+                   <option value="Without Discount">Without Discount</option>
+                   <option value="With Discount At Item Level">With Discount At Item Level</option>
+                   <option value="With Discount At Bill Order Level">With Discount At Bill Order Level</option>
+                </select>
+             </div>
+             <div className="flex items-center gap-2">
+                <input 
+                   type="checkbox" 
+                   id="grossNet"
+                   checked={formData.grossNetEnabled}
+                   onChange={e => setFormData({...formData, grossNetEnabled: e.target.checked})}
+                   className="w-4 h-4 text-sky-500 focus:ring-sky-500 border-gray-300 rounded"
+                />
+                <label htmlFor="grossNet" className="text-xs font-bold text-slate-700">Would you like to enable Gross Weight and Net Weight?</label>
+             </div>
+          </div>
+
+          {/* Items Table */}
+          <div className="overflow-x-auto">
+             <table className="w-full min-w-[1000px] border-collapse">
+                <thead>
+                   <tr className="bg-gray-100 text-xs font-bold text-slate-700 text-left border-b">
+                      <th className="p-2 w-40">Item Details</th> 
+                      <th className="p-2">Item</th>
+                      {formData.grossNetEnabled && <th className="p-2 w-24">Quantity(Gross)</th>}
+                      <th className="p-2 w-24">{formData.grossNetEnabled ? 'Quantity(Net)' : 'Quantity'}</th>
+                      <th className="p-2 w-24">Rate</th>
+                      {formData.billType === 'With Discount At Item Level' && <th className="p-2 w-24">Discount</th>}
+                      <th className="p-2 w-28">Amount</th>
+                      <th className="p-2 w-20">Tax Value</th>
+                      <th className="p-2 w-10 text-center">Action</th>
+                   </tr>
+                </thead>
+                <tbody className="text-sm">
+                   {lines.map((item, index) => (
+                      <tr key={index} className="border-b last:border-0 hover:bg-gray-50 relative group">
+                         {/* Categories & Subcategories row logic or merged? Screenshot shows "Category..." "Subcategory..." "Item..." on one line */}
+                         <td className="p-2">
+                            <div className="flex gap-1">
+                                <select 
+                                   className="w-1/2 border rounded px-1 py-1 text-xs text-gray-600"
+                                   value={item.categoryId || ''}
+                                   onChange={e => handleLineChange(index, 'categoryId', e.target.value)}
+                                >
+                                    <option value="">Category</option>
+                                    {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                </select>
+                                <select 
+                                   className="w-1/2 border rounded px-1 py-1 text-xs text-gray-600"
+                                   value={item.subCategoryId || ''}
+                                   onChange={e => handleLineChange(index, 'subCategoryId', e.target.value)}
+                                >
+                                    <option value="">SubCat</option>
+                                    {(subCategoriesByCategory[item.categoryId] || []).map(sc => (
+                                        <option key={sc.id} value={sc.id}>{sc.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                         </td>
+                         <td className="p-2">
+                             <select 
+                                className="w-full border rounded px-2 py-1"
+                                value={item.itemId || ''}
+                                onChange={e => handleLineChange(index, 'itemId', e.target.value)}
+                             >
+                                 <option value="">Select Item</option>
+                                 {items.filter(i => {
+                                     const iCatId = i.category?.id || i.categoryId;
+                                     const iSubId = i.subCategory?.id || i.subCategoryId;
+                                     return (!item.categoryId || iCatId == item.categoryId) && 
+                                            (!item.subCategoryId || iSubId == item.subCategoryId);
+                                 }).map(i => (
+                                    <option key={i.id} value={i.id}>{i.name}</option>
+                                 ))}
+                             </select>
+                             {/* Description area */}
+                             <textarea 
+                                className="w-full mt-1 border rounded px-2 py-1 text-xs resize-none h-8 focus:h-16 transition-all"
+                                placeholder="Description"
+                                value={item.description || ''}
+                                onChange={e => handleLineChange(index, 'description', e.target.value)}
+                             />
+                         </td>
+
+                         {formData.grossNetEnabled && (
+                            <td className="p-2 align-top">
+                               <input 
+                                 type="number" 
+                                 className="w-full border rounded px-2 py-1"
+                                 value={item.quantityGross}
+                                 onChange={e => handleLineChange(index, 'quantityGross', e.target.value)}
+                               />
+                            </td>
+                         )}
+
+                         <td className="p-2 align-top">
+                            <input 
+                               type="number" 
+                               className="w-full border rounded px-2 py-1 bg-gray-50 font-medium"
+                               value={formData.grossNetEnabled ? item.quantityNet : item.quantityGross} 
+                               onChange={e => handleLineChange(index, formData.grossNetEnabled ? 'quantityNet' : 'quantityGross', e.target.value)}
+                               placeholder="Qty"
+                            />
+                            {/* Unit Display */}
+                            <div className="mt-1 text-xs text-slate-500">
+                                {units.find(u => u.id == item.unitId)?.name || 'Unit'}
+                            </div>
+                         </td>
+
+                         <td className="p-2 align-top">
+                            <input 
+                               type="number" 
+                               className="w-full border rounded px-2 py-1"
+                               value={item.rate}
+                               onChange={e => handleLineChange(index, 'rate', e.target.value)}
+                            />
+                         </td>
+
+                         {formData.billType === 'With Discount At Item Level' && (
+                             <td className="p-2 align-top">
+                                <input 
+                                   type="number" 
+                                   className="w-full border rounded px-2 py-1"
+                                   value={item.lineDiscount}
+                                   onChange={e => handleLineChange(index, 'lineDiscount', e.target.value)}
+                                />
+                             </td>
+                         )}
+
+                         <td className="p-2 align-top">
+                             <div className="w-full border rounded px-2 py-1 bg-gray-100 text-right">
+                                {Number(item.amount).toFixed(2)}
+                             </div>
+                         </td>
+
+                         <td className="p-2 align-top">
+                             <div className="flex items-center gap-1">
+                                <select 
+                                   className="w-16 border rounded px-1 py-1 text-xs"
+                                   value={item.taxId || ''}
+                                   onChange={e => handleLineChange(index, 'taxId', e.target.value)}
+                                >
+                                    <option value="">0%</option>
+                                    {taxes.map(t => <option key={t.id} value={t.id}>{t.rate}%</option>)}
+                                </select>
+                                <span className="text-xs">%</span>
+                             </div>
+                         </td>
+
+                         <td className="p-2 text-center align-top">
+                            <button 
+                               type="button" 
+                               onClick={() => removeLine(index)}
+                               className="bg-blue-500 text-white rounded p-1 hover:bg-blue-600 shadow-sm"
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                         </td>
+                      </tr>
+                   ))}
+                </tbody>
+             </table>
+             <button 
+                type="button" 
+                onClick={addLine}
+                className="mt-2 flex items-center gap-1 text-blue-500 text-sm font-medium hover:text-blue-600 transition"
+             >
+                <Plus size={16} /> Add another line
+             </button>
+          </div>
+
+          {/* Footer Totals */}
+          <div className="flex flex-col md:flex-row gap-8 border-t pt-6 bg-gray-50 -mx-6 px-6 -mb-6 pb-6 rounded-b">
+              {/* Attachments / Notes Column */}
+              <div className="flex-1 space-y-6">
+                 <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Attach File(s)</label>
+                    <div className="border border-dashed border-gray-300 bg-white p-4 rounded flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-gray-50 transition">
+                        <Upload size={24} className="text-gray-400" />
+                        <span className="text-xs text-gray-500">Choose File</span>
+                        <input type="file" multiple className="opacity-0 absolute w-full h-full cursor-pointer" onChange={handleFileChange} />
+                    </div>
+                    {/* Attachments List */}
+                    <div className="mt-2 space-y-1">
+                        {existingAttachments.map(a => (
+                            <div key={a.id} className="flex justify-between items-center text-xs bg-white border px-2 py-1 rounded">
+                                <a href={a.url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-blue-600 hover:underline">
+                                    <Paperclip size={12} /> {a.fileName}
+                                </a>
+                                <button type="button" onClick={() => removeExistingAttachment(a.id)} className="text-red-500 hover:text-red-700"><X size={12}/></button>
+                            </div>
+                        ))}
+                        {attachments.map((f, i) => (
+                            <div key={i} className="flex justify-between items-center text-xs bg-blue-50 border border-blue-100 px-2 py-1 rounded">
+                                <span className="flex items-center gap-1 text-slate-700"><FileText size={12} /> {f.name}</span>
+                                <button type="button" onClick={() => removeAttachment(i)} className="text-red-500 hover:text-red-700"><X size={12}/></button>
+                            </div>
+                        ))}
+                    </div>
+                 </div>
+
+                 <div>
+                     <label className="block text-sm font-bold text-slate-700 mb-2">Notes</label>
+                     <textarea 
+                        className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-sky-500"
+                        rows={3}
+                        placeholder="Will be displayed on purchase order"
+                        value={formData.notes}
+                        onChange={e => setFormData({...formData, notes: e.target.value})}
+                     />
+                 </div>
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Totals preview */}
-        <div className="flex justify-end">
-          <div className="w-full max-w-sm space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-foreground-muted">Subtotal:</span><span className="font-medium text-foreground">{totalsPreview.subTotal.toFixed(4)}</span></div>
-            <div className="flex justify-between"><span className="text-foreground-muted">Total Discount:</span><span className="font-medium text-foreground">{totalsPreview.totalDiscount.toFixed(4)}</span></div>
-            <div className="flex justify-between"><span className="text-foreground-muted">Total Tax:</span><span className="font-medium text-foreground">{totalsPreview.totalTax.toFixed(4)}</span></div>
-            <div className="flex justify-between items-center">
-              <span className="text-foreground-muted">Other Charges:</span>
-              <input type="number" name="otherCharges" value={formData.otherCharges ?? 0} onChange={handleHeaderChange} className="input text-right text-sm w-24 py-1" />
-            </div>
-            <div className="flex justify-between"><span className="text-foreground-muted">Gross Total:</span><span className="font-medium text-foreground">{totalsPreview.grossTotal.toFixed(4)}</span></div>
-            <div className="flex justify-between border-t border-border pt-2 mt-2"><span className="text-lg font-bold text-foreground">Net Total:</span><span className="text-lg font-bold text-foreground">{totalsPreview.netTotal.toFixed(4)}</span></div>
-          </div>
-        </div>
+              {/* Calculations Column */}
+              <div className="w-full md:w-1/3 lg:w-1/4 space-y-2 text-sm">
+                  <div className="flex justify-between py-1 border-b border-gray-200">
+                     <span className="text-slate-600">Sub Total</span>
+                     <span className="font-semibold">{totals.subTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-200">
+                     <span className="text-slate-600">Total Discount</span>
+                     <span className="font-semibold">{totals.totalDiscount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-200">
+                     <span className="text-slate-600">Gross Total</span>
+                     <span className="font-semibold">{totals.grossTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-gray-200">
+                     <span className="text-slate-600">Total Tax</span>
+                     <span className="font-semibold">{totals.totalTax.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-gray-200">
+                     <span className="text-slate-600">Other Charges</span>
+                     <input 
+                       type="number" 
+                       className="w-24 text-right border rounded px-1 text-xs"
+                       value={formData.otherCharges}
+                       onChange={e => setFormData({...formData, otherCharges: parseFloat(e.target.value) || 0})}
+                     />
+                  </div>
+                  <div className="flex justify-between py-2 border-t font-bold text-base text-slate-800 mt-2">
+                     <span>Net Total</span>
+                     <span>{totals.netTotal.toFixed(2)}</span>
+                  </div>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-4 pt-6 border-t border-border">
-          <button type="button" onClick={() => navigate("/purchase-dashboard/bills")} className="btn-secondary" disabled={loading}>Cancel</button>
-          <button type="submit" className="btn-primary flex items-center gap-2" disabled={loading}>
-            {loading ? <Loader className="h-4 w-4 animate-spin" /> : <Save size={16} />} {isEditing ? "Update" : "Save"} Bill
-          </button>
-        </div>
-      </form>
+                  <div className="pt-4 flex gap-2">
+                     <button 
+                       type="submit" 
+                       disabled={submitting}
+                       className="flex-1 bg-green-500 text-white py-2 rounded font-medium hover:bg-green-600 transition shadow-sm flex justify-center items-center gap-2"
+                     >
+                       {submitting ? <Loader className="animate-spin" size={16} /> : <Save size={16} />}
+                       Save
+                     </button>
+                     <button 
+                       type="button" 
+                       onClick={() => navigate('/purchase-dashboard/bills')}
+                       className="flex-1 bg-white border border-gray-300 text-slate-700 py-2 rounded font-medium hover:bg-gray-50 transition"
+                     >
+                       Cancel
+                     </button>
+                  </div>
+              </div>
+          </div>
+       </form>
     </div>
   );
 };

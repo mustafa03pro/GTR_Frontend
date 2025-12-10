@@ -1,1062 +1,28 @@
-// import React, { useState, useEffect, useMemo } from 'react';
-// import { useNavigate, useParams, Link } from 'react-router-dom';
-// import axios from 'axios';
-// import { Save, Loader, ArrowLeft, AlertCircle } from 'lucide-react';
-
-// const API_URL = import.meta.env.VITE_API_BASE_URL;
-
-// const InputField = ({ label, ...props }) => (
-//     <div>
-//         <label htmlFor={props.id || props.name} className="block text-sm font-medium text-foreground-muted">{label}</label>
-//         <input {...props} className="input mt-1 bg-background-muted border-border" />
-//     </div>
-// );
-
-// const SelectField = ({ label, children, ...props }) => (
-//     <div>
-//         <label htmlFor={props.id || props.name} className="block text-sm font-medium text-foreground-muted">{label}</label>
-//         <select {...props} className="input mt-1 bg-background-muted border-border">
-//             {children}
-//         </select>
-//     </div>
-// );
-
-// const PurchasePaymentForm = () => {
-//     const { id } = useParams();
-//     const navigate = useNavigate();
-//     const isEditing = Boolean(id);
-
-//     const [formData, setFormData] = useState({
-//         supplierId: '',
-//         amount: '',
-//         paymentDate: new Date().toISOString().split('T')[0],
-//         paymentMode: 'Bank Transfer',
-//         paidThrough: '',
-//         reference: '',
-//         notes: '',
-//         allocations: [],
-//     });
-//     const [suppliers, setSuppliers] = useState([]);
-//     const [unpaidInvoices, setUnpaidInvoices] = useState([]);
-//     const [loading, setLoading] = useState(false);
-//     const [error, setError] = useState('');
-
-//     useEffect(() => {
-//         const fetchInitialData = async () => {
-//             setLoading(true);
-//             try {
-//                 const token = localStorage.getItem('token');
-//                 const headers = { Authorization: `Bearer ${token}` };//parties?type=SUPPLIER
-                
-//                 const suppliersRes = await axios.get(`${API_URL}/purchases/payments`, { headers });
-//                 setSuppliers(suppliersRes.data.content || []);
-
-//                 if (isEditing) {
-//                     const paymentRes = await axios.get(`${API_URL}/purchases/payments/${id}`, { headers });
-//                     const paymentData = paymentRes.data;
-//                     setFormData({
-//                         ...paymentData,
-//                         paymentDate: paymentData.paymentDate ? new Date(paymentData.paymentDate).toISOString().split('T')[0] : '',
-//                     });
-//                     if (paymentData.supplierId) {
-//                         fetchUnpaidInvoices(paymentData.supplierId, token);
-//                     }
-//                 }
-//             } catch (err) {
-//                 console.error("Failed to fetch initial data:", err);
-//                 setError("Failed to load necessary data.");
-//             } finally {
-//                 setLoading(false);
-//             }
-//         };
-//         fetchInitialData();
-//     }, [id, isEditing]);
-
-//     const fetchUnpaidInvoices = async (supplierId, token) => {
-//         if (!supplierId) {
-//             setUnpaidInvoices([]);
-//             return;
-//         }
-//         try {
-//             // NOTE: The backend does not currently support filtering invoices by supplier or status.
-//             // This is a client-side filter which is inefficient.
-//             // A dedicated endpoint like `/api/purchases/invoices/unpaid?supplierId={id}` would be better.
-//             const response = await axios.get(`${API_URL}/purchases/invoices`, {
-//                 headers: { "Authorization": `Bearer ${token}` },
-//                 params: { page: 0, size: 200 } // Fetch a large number to simulate getting all
-//             });
-//             const supplierInvoices = response.data.content.filter(inv => inv.supplierId === parseInt(supplierId));
-//             setUnpaidInvoices(supplierInvoices);
-//         } catch (err) {
-//             console.error("Failed to fetch unpaid invoices:", err);
-//             setError("Could not load unpaid invoices for the selected supplier.");
-//         }
-//     };
-
-//     const handleSupplierChange = (e) => {
-//         const newSupplierId = e.target.value;
-//         setFormData(prev => ({ ...prev, supplierId: newSupplierId, allocations: [] }));
-//         const token = localStorage.getItem('token');
-//         fetchUnpaidInvoices(newSupplierId, token);
-//     };
-
-//     const handleHeaderChange = (e) => {
-//         const { name, value } = e.target;
-//         setFormData(prev => ({ ...prev, [name]: value }));
-//     };
-
-//     const handleAllocationChange = (invoiceId, amountToAllocate) => {
-//         const newAmount = parseFloat(amountToAllocate) || 0;
-//         setFormData(prev => {
-//             const existingAlloc = prev.allocations.find(a => a.invoiceId === invoiceId);
-//             let newAllocations;
-
-//             if (newAmount > 0) {
-//                 if (existingAlloc) {
-//                     newAllocations = prev.allocations.map(a => a.invoiceId === invoiceId ? { ...a, allocatedAmount: newAmount } : a);
-//                 } else {
-//                     newAllocations = [...prev.allocations, { invoiceId, allocatedAmount: newAmount }];
-//                 }
-//             } else {
-//                 newAllocations = prev.allocations.filter(a => a.invoiceId !== invoiceId);
-//             }
-//             return { ...prev, allocations: newAllocations };
-//         });
-//     };
-
-//     const totals = useMemo(() => {
-//         const totalAllocated = formData.allocations.reduce((sum, alloc) => sum + (parseFloat(alloc.allocatedAmount) || 0), 0);
-//         const totalPayment = parseFloat(formData.amount) || 0;
-//         const amountInExcess = totalPayment - totalAllocated;
-//         return { totalAllocated, amountInExcess };
-//     }, [formData.allocations, formData.amount]);
-
-//     const handleSubmit = async (e) => {
-//         e.preventDefault();
-//         setLoading(true);
-//         setError('');
-
-//         if (totals.amountInExcess < 0) {
-//             setError("Total allocated amount cannot be greater than the payment amount.");
-//             setLoading(false);
-//             return;
-//         }
-
-//         try {
-//             const token = localStorage.getItem('token');
-//             const headers = { Authorization: `Bearer ${token}` };
-
-//             if (isEditing) {
-//                 await axios.put(`${API_URL}/purchases/payments/${id}`, formData, { headers });
-//             } else {
-//                 await axios.post(`${API_URL}/purchases/payments`, formData, { headers });
-//             }
-//             navigate('/purchase-dashboard/payments');
-//         } catch (err) {
-//             console.error("Failed to save payment:", err);
-//             setError(err.response?.data?.message || "An error occurred while saving.");
-//         } finally {
-//             setLoading(false);
-//         }
-//     };
-
-//     if (loading && !isEditing) {
-//         return <div className="flex justify-center items-center h-64"><Loader className="animate-spin h-8 w-8 text-primary" /></div>;
-//     }
-
-//     return (
-//         <div className="bg-card p-6 rounded-xl shadow-sm">
-//             <div className="flex justify-between items-center mb-6">
-//                 <h1 className="text-2xl font-bold text-foreground">{isEditing ? `Edit Payment` : 'New Payment'}</h1>
-//                 <Link to="/purchase-dashboard/payments" className="btn-secondary flex items-center gap-2">
-//                     <ArrowLeft size={16} /> Back to List
-//                 </Link>
-//             </div>
-
-//             {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert"><span className="block sm:inline">{error}</span></div>}
-
-//             <form onSubmit={handleSubmit} className="space-y-8">
-//                 {/* Header Section */}
-//                 <div className="p-4 border border-border rounded-lg">
-//                     <h2 className="text-lg font-semibold text-foreground mb-4">Payment Details</h2>
-//                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-//                         <SelectField label="Supplier" name="supplierId" value={formData.supplierId} onChange={handleSupplierChange} required>
-//                             <option value="">Select Supplier</option>
-//                             {suppliers.map(s => <option key={s.id} value={s.id}>{s.companyName}</option>)}
-//                         </SelectField>
-//                         <InputField label="Amount" name="amount" type="number" value={formData.amount} onChange={handleHeaderChange} required step="0.01" />
-//                         <InputField label="Payment Date" name="paymentDate" type="date" value={formData.paymentDate} onChange={handleHeaderChange} required />
-//                         <SelectField label="Payment Mode" name="paymentMode" value={formData.paymentMode} onChange={handleHeaderChange}>
-//                             <option value="Bank Transfer">Bank Transfer</option>
-//                             <option value="Cash">Cash</option>
-//                             <option value="Cheque">Cheque</option>
-//                         </SelectField>
-//                         <InputField label="Paid Through Account" name="paidThrough" value={formData.paidThrough} onChange={handleHeaderChange} placeholder="e.g., Main Bank Account" />
-//                         <InputField label="Reference #" name="reference" value={formData.reference} onChange={handleHeaderChange} />
-//                         {formData.paymentMode === 'Cheque' && (
-//                             <InputField label="Cheque #" name="chequeNumber" value={formData.chequeNumber} onChange={handleHeaderChange} />
-//                         )}
-//                         <div className="lg:col-span-4">
-//                             <label htmlFor="notes" className="block text-sm font-medium text-foreground-muted">Notes</label>
-//                             <textarea id="notes" name="notes" value={formData.notes} onChange={handleHeaderChange} rows="3" className="input mt-1 bg-background-muted border-border"></textarea>
-//                         </div>
-//                     </div>
-//                 </div>
-
-//                 {/* Allocations Section */}
-//                 {formData.supplierId && (
-//                     <div className="p-4 border border-border rounded-lg">
-//                         <h2 className="text-lg font-semibold text-foreground mb-4">Allocate Payment to Invoices</h2>
-//                         <div className="overflow-x-auto">
-//                             <table className="min-w-full">
-//                                 <thead className="bg-background-muted">
-//                                     <tr>
-//                                         <th className="th-cell text-left">Bill Date</th>
-//                                         <th className="th-cell text-left">Bill #</th>
-//                                         <th className="th-cell text-right">Bill Amount</th>
-//                                         <th className="th-cell text-right">Amount Due</th>
-//                                         <th className="th-cell text-right w-1/4">Payment</th>
-//                                     </tr>
-//                                 </thead>
-//                                 <tbody>
-//                                     {unpaidInvoices.length > 0 ? (
-//                                         unpaidInvoices.map(inv => {
-//                                             const allocatedAmount = formData.allocations.find(a => a.invoiceId === inv.id)?.allocatedAmount || '';
-//                                             // This is a simplification. A real app would track payments against invoices.
-//                                             const amountDue = inv.netTotal; 
-//                                             return (
-//                                                 <tr key={inv.id} className="border-b border-border">
-//                                                     <td className="td-cell">{new Date(inv.billDate).toLocaleDateString()}</td>
-//                                                     <td className="td-cell font-medium">{inv.billNumber}</td>
-//                                                     <td className="td-cell text-right font-mono">{inv.netTotal.toFixed(2)}</td>
-//                                                     <td className="td-cell text-right font-mono text-red-600">{amountDue.toFixed(2)}</td>
-//                                                     <td className="td-cell">
-//                                                         <InputField
-//                                                             type="number"
-//                                                             value={allocatedAmount}
-//                                                             onChange={(e) => handleAllocationChange(inv.id, e.target.value)}
-//                                                             className="input text-right text-sm py-1"
-//                                                             placeholder="0.00"
-//                                                             max={amountDue}
-//                                                         />
-//                                                     </td>
-//                                                 </tr>
-//                                             );
-//                                         })
-//                                     ) : (
-//                                         <tr>
-//                                             <td colSpan="5" className="text-center py-6 text-foreground-muted">
-//                                                 <AlertCircle className="mx-auto h-8 w-8 text-foreground-muted/50" />
-//                                                 <p className="mt-2">No unpaid invoices found for this supplier.</p>
-//                                             </td>
-//                                         </tr>
-//                                     )}
-//                                 </tbody>
-//                             </table>
-//                         </div>
-//                     </div>
-//                 )}
-
-//                 {/* Totals Section */}
-//                 <div className="flex justify-end">
-//                     <div className="w-full max-w-sm space-y-3 text-sm p-4 bg-background-muted rounded-lg">
-//                         <div className="flex justify-between">
-//                             <span className="text-foreground-muted">Total Payment Amount:</span>
-//                             <span className="font-medium text-foreground">{(parseFloat(formData.amount) || 0).toFixed(2)}</span>
-//                         </div>
-//                         <div className="flex justify-between">
-//                             <span className="text-foreground-muted">Amount Used for Payments:</span>
-//                             <span className="font-medium text-foreground">{totals.totalAllocated.toFixed(2)}</span>
-//                         </div>
-//                         <div className="flex justify-between border-t border-border pt-3 mt-2">
-//                             <span className="text-base font-bold text-foreground">
-//                                 {totals.amountInExcess >= 0 ? 'Amount in Excess' : 'Amount to Allocate'}
-//                             </span>
-//                             <span className={`text-base font-bold ${totals.amountInExcess < 0 ? 'text-red-600' : 'text-green-600'}`}>
-//                                 {Math.abs(totals.amountInExcess).toFixed(2)}
-//                             </span>
-//                         </div>
-//                     </div>
-//                 </div>
-
-//                 {/* Actions */}
-//                 <div className="flex justify-end gap-4 pt-6 border-t border-border">
-//                     <button type="button" onClick={() => navigate('/purchase-dashboard/payments')} className="btn-secondary" disabled={loading}>
-//                         Cancel
-//                     </button>
-//                     <button type="submit" className="btn-primary flex items-center gap-2" disabled={loading}>
-//                         {loading ? <Loader className="animate-spin h-4 w-4" /> : <Save size={16} />}
-//                         {isEditing ? 'Update' : 'Save'} Payment
-//                     </button>
-//                 </div>
-//             </form>
-//         </div>
-//     );
-// };
-
-// export default PurchasePaymentForm;
-
-
-
-// PurchasePaymentForm.jsx
-
-
-
-
-
-// import React, { useState, useEffect, useMemo } from 'react';
-// import { useNavigate, useParams, Link } from 'react-router-dom';
-// import axios from 'axios';
-// import { Plus, Trash2, Save, Loader, ArrowLeft } from 'lucide-react';
-
-// const API_URL = import.meta.env.VITE_API_BASE_URL;
-
-// const Input = ({ label, ...props }) => (
-//   <div>
-//     <label className="block text-sm font-medium text-muted">{label}</label>
-//     <input {...props} className="input mt-1" />
-//   </div>
-// );
-
-// const Select = ({ label, children, ...props }) => (
-//   <div>
-//     <label className="block text-sm font-medium text-muted">{label}</label>
-//     <select {...props} className="input mt-1">{children}</select>
-//   </div>
-// );
-
-// const PurchasePaymentForm = () => {
-//   const { id } = useParams();
-//   const navigate = useNavigate();
-//   const isEditing = Boolean(id);
-
-//   const [form, setForm] = useState({
-//     supplierId: '',
-//     amount: '',
-//     payFullAmount: false,
-//     taxDeducted: false,
-//     tdsAmount: 0,
-//     tdsSection: '',
-//     paymentDate: new Date().toISOString().split('T')[0],
-//     paymentMode: '',
-//     paidThrough: '',
-//     reference: '',
-//     chequeNumber: '',
-//     notes: '',
-//     createdBy: '',
-//     allocations: [],
-//     attachments: []
-//   });
-
-//   const [suppliers, setSuppliers] = useState([]);
-//   const [invoices, setInvoices] = useState([]); // available invoices for allocation
-//   const [loading, setLoading] = useState(false);
-//   const [error, setError] = useState('');
-
-//   // fetch masters and invoice list (unpaid invoices ideally, backend may provide filter)
-//   useEffect(() => {
-//     const fetch = async () => {
-//       setLoading(true);
-//       try {
-//         const token = localStorage.getItem('token');
-//         const headers = { Authorization: `Bearer ${token}` };
-
-//         const [supRes, invRes] = await Promise.all([
-//           axios.get(`${API_URL}/parties`, { headers, params: { type: 'SUPPLIER', page: 0, size: 500 } }),
-//           axios.get(`${API_URL}/purchases/invoices`, { headers, params: { page: 0, size: 500, sort: 'billDate,desc' } })
-//         ]);
-
-//         setSuppliers(supRes.data.content || supRes.data || []);
-//         setInvoices(invRes.data.content || invRes.data || []);
-
-//         if (isEditing) {
-//           const paymentRes = await axios.get(`${API_URL}/purchases/payments/${id}`, { headers });
-//           const d = paymentRes.data;
-//           // normalize allocations and attachments
-//           setForm({
-//             supplierId: d.supplierId || '',
-//             amount: d.amount ?? '',
-//             payFullAmount: !!d.payFullAmount,
-//             taxDeducted: !!d.taxDeducted,
-//             tdsAmount: d.tdsAmount ?? 0,
-//             tdsSection: d.tdsSection || '',
-//             paymentDate: d.paymentDate ? new Date(d.paymentDate).toISOString().split('T')[0] : '',
-//             paymentMode: d.paymentMode || '',
-//             paidThrough: d.paidThrough || '',
-//             reference: d.reference || '',
-//             chequeNumber: d.chequeNumber || '',
-//             notes: d.notes || '',
-//             createdBy: d.createdBy || '',
-//             allocations: (d.allocations || []).map(a => ({
-//               id: a.id || null,
-//               invoiceId: a.invoiceId,
-//               allocatedAmount: a.allocatedAmount || 0,
-//               allocationNote: a.allocationNote || ''
-//             })),
-//             attachments: (d.attachments || []).map(a => ({
-//               id: a.id || null,
-//               fileName: a.fileName || '',
-//               filePath: a.filePath || '',
-//               uploadedBy: a.uploadedBy || '',
-//               uploadedAt: a.uploadedAt || ''
-//             }))
-//           });
-//         }
-//       } catch (err) {
-//         console.error('Failed to load masters or invoices', err);
-//         setError('Failed to load data.');
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     fetch();
-//   }, [id, isEditing]);
-
-//   const handleChange = (e) => {
-//     const { name, value, type, checked } = e.target;
-//     const val = type === 'checkbox' ? checked : value;
-//     setForm(prev => ({ ...prev, [name]: val }));
-//   };
-
-//   // allocation handlers
-//   const addAllocation = () => {
-//     setForm(prev => ({
-//       ...prev,
-//       allocations: [...prev.allocations, { invoiceId: '', allocatedAmount: 0, allocationNote: '' }]
-//     }));
-//   };
-
-//   const removeAllocation = (index) => {
-//     setForm(prev => ({ ...prev, allocations: prev.allocations.filter((_, i) => i !== index) }));
-//   };
-
-//   const updateAllocation = (index, e) => {
-//     const { name, value } = e.target;
-//     setForm(prev => {
-//       const allocs = [...prev.allocations];
-//       allocs[index] = { ...allocs[index], [name]: name === 'allocatedAmount' ? Number(value) : value };
-//       return { ...prev, allocations: allocs };
-//     });
-//   };
-
-//   // attachments
-//   const addAttachment = () => {
-//     setForm(prev => ({ ...prev, attachments: [...prev.attachments, { fileName: '', filePath: '', uploadedBy: prev.createdBy || '', uploadedAt: new Date().toISOString() }] }));
-//   };
-//   const removeAttachment = (idx) => setForm(prev => ({ ...prev, attachments: prev.attachments.filter((_, i) => i !== idx) }));
-//   const updateAttachment = (idx, e) => {
-//     const { name, value } = e.target;
-//     setForm(prev => {
-//       const atts = [...prev.attachments];
-//       atts[idx] = { ...atts[idx], [name]: value };
-//       return { ...prev, attachments: atts };
-//     });
-//   };
-
-//   // computed totals: sum of allocations, remaining, inExcess
-//   const totals = useMemo(() => {
-//     const amount = Number(form.amount || 0);
-//     const sumAllocated = (form.allocations || []).reduce((s, a) => s + (Number(a.allocatedAmount || 0)), 0);
-//     const amountUsedForPayments = sumAllocated;
-//     const amountInExcess = Math.max(0, amount - sumAllocated);
-//     const amountPaid = sumAllocated; // matches backend logic
-//     return { amount, sumAllocated, amountUsedForPayments, amountInExcess, amountPaid };
-//   }, [form.amount, form.allocations]);
-
-//   const validate = () => {
-//     if (!form.paymentDate) return 'Payment date is required';
-//     if (!form.amount || Number(form.amount) <= 0) return 'Amount must be greater than 0';
-//     return null;
-//   };
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     const v = validate();
-//     if (v) { setError(v); return; }
-//     setError('');
-//     setLoading(true);
-
-//     const payload = {
-//       supplierId: form.supplierId || null,
-//       amount: Number(form.amount),
-//       payFullAmount: !!form.payFullAmount,
-//       taxDeducted: !!form.taxDeducted,
-//       tdsAmount: form.tdsAmount ? Number(form.tdsAmount) : 0,
-//       tdsSection: form.tdsSection || null,
-//       paymentDate: form.paymentDate || null,
-//       paymentMode: form.paymentMode || null,
-//       paidThrough: form.paidThrough || null,
-//       reference: form.reference || null,
-//       chequeNumber: form.chequeNumber || null,
-//       notes: form.notes || null,
-//       createdBy: form.createdBy || null,
-//       allocations: (form.allocations || []).map(a => ({
-//         id: a.id || null,
-//         invoiceId: a.invoiceId,
-//         allocatedAmount: Number(a.allocatedAmount || 0),
-//         allocationNote: a.allocationNote || null
-//       })),
-//       attachments: (form.attachments || []).map(a => ({
-//         id: a.id || null,
-//         fileName: a.fileName || null,
-//         filePath: a.filePath || null,
-//         uploadedBy: a.uploadedBy || null,
-//         uploadedAt: a.uploadedAt || null
-//       }))
-//     };
-
-//     try {
-//       const token = localStorage.getItem('token');
-//       const headers = { Authorization: `Bearer ${token}` };
-
-//       if (isEditing) {
-//         await axios.put(`${API_URL}/purchases/payments/${id}`, payload, { headers });
-//       } else {
-//         await axios.post(`${API_URL}/purchases/payments`, payload, { headers });
-//       }
-//       navigate('/purchase-dashboard/payments');
-//     } catch (err) {
-//       console.error('Failed to save payment', err);
-//       setError(err?.response?.data?.message || 'Failed to save payment.');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   if (loading && !isEditing) {
-//     return <div className="flex justify-center items-center h-64"><Loader className="h-8 w-8 animate-spin" /></div>;
-//   }
-
-//   return (
-//     <div className="bg-card p-6 rounded-xl shadow-sm">
-//       <div className="flex justify-between items-center mb-6">
-//         <h1 className="text-2xl font-bold">{isEditing ? `Edit Payment` : 'New Payment'}</h1>
-//         <Link to="/purchase-dashboard/payments" className="btn-secondary flex items-center gap-2"><ArrowLeft size={16} /> Back to List</Link>
-//       </div>
-
-//       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
-
-//       <form onSubmit={handleSubmit} className="space-y-6">
-//         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded">
-//           <Select label="Supplier" name="supplierId" value={form.supplierId} onChange={handleChange}>
-//             <option value="">Select Supplier</option>
-//             {suppliers.map(s => <option key={s.id} value={s.id}>{s.companyName || s.name || `${s.firstName || ''} ${s.lastName || ''}`}</option>)}
-//           </Select>
-
-//           <Input label="Amount" name="amount" type="number" step="0.01" value={form.amount} onChange={handleChange} />
-
-//           <div className="flex items-center gap-2">
-//             <input id="payFullAmount" name="payFullAmount" type="checkbox" checked={!!form.payFullAmount} onChange={handleChange} />
-//             <label htmlFor="payFullAmount">Pay Full Amount</label>
-//           </div>
-
-//           <div className="flex flex-col">
-//             <div className="flex items-center gap-2">
-//               <input id="taxDeducted" name="taxDeducted" type="checkbox" checked={!!form.taxDeducted} onChange={handleChange} />
-//               <label htmlFor="taxDeducted">TDS Deducted</label>
-//             </div>
-//             <div className="grid grid-cols-2 gap-2 mt-2">
-//               <input name="tdsAmount" type="number" step="0.01" placeholder="TDS Amount" value={form.tdsAmount} onChange={handleChange} className="input" />
-//               <input name="tdsSection" placeholder="TDS Section" value={form.tdsSection} onChange={handleChange} className="input" />
-//             </div>
-//           </div>
-
-//           <Input label="Payment Date" name="paymentDate" type="date" value={form.paymentDate} onChange={handleChange} />
-//           <Input label="Payment Mode" name="paymentMode" value={form.paymentMode} onChange={handleChange} />
-//           <Input label="Paid Through (Account)" name="paidThrough" value={form.paidThrough} onChange={handleChange} />
-//           <Input label="Reference" name="reference" value={form.reference} onChange={handleChange} />
-//           <Input label="Cheque Number" name="chequeNumber" value={form.chequeNumber} onChange={handleChange} />
-//           <div className="col-span-full">
-//             <label className="block text-sm">Notes</label>
-//             <textarea name="notes" value={form.notes} onChange={handleChange} className="input mt-1" rows="3" />
-//           </div>
-//           <Input label="Created By" name="createdBy" value={form.createdBy} onChange={handleChange} />
-//         </div>
-
-//         {/* Allocations */}
-//         <div className="p-4 border rounded">
-//           <div className="flex justify-between items-center mb-3">
-//             <h3 className="font-semibold">Allocations</h3>
-//             <button type="button" onClick={addAllocation} className="btn-secondary flex items-center gap-2"><Plus /> Add Allocation</button>
-//           </div>
-
-//           <div className="overflow-x-auto">
-//             <table className="min-w-full">
-//               <thead className="bg-background-muted">
-//                 <tr>
-//                   <th className="th-cell">#</th>
-//                   <th className="th-cell">Invoice</th>
-//                   <th className="th-cell">Invoice Amount</th>
-//                   <th className="th-cell">Allocate Amount</th>
-//                   <th className="th-cell">Note</th>
-//                   <th className="th-cell"></th>
-//                 </tr>
-//               </thead>
-//               <tbody>
-//                 {form.allocations.map((a, idx) => {
-//                   const inv = invoices.find(i => i.id === Number(a.invoiceId));
-//                   return (
-//                     <tr key={idx} className="border-b">
-//                       <td className="td-cell">{idx + 1}</td>
-//                       <td className="td-cell">
-//                         <select name="invoiceId" value={a.invoiceId || ''} onChange={(e) => updateAllocation(idx, e)} className="input">
-//                           <option value="">Select invoice</option>
-//                           {invoices.map(invOpt => <option key={invOpt.id} value={invOpt.id}>{invOpt.billNumber || (`#${invOpt.id}`)} — {invOpt.supplierName || ''}</option>)}
-//                         </select>
-//                         {inv && <div className="text-xs text-muted mt-1">Due: {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : 'N/A'}</div>}
-//                       </td>
-//                       <td className="td-cell">{inv ? (inv.netTotal ?? 0).toFixed(2) : '—'}</td>
-//                       <td className="td-cell">
-//                         <input name="allocatedAmount" type="number" step="0.01" value={a.allocatedAmount || 0} onChange={(e) => updateAllocation(idx, e)} className="input" />
-//                       </td>
-//                       <td className="td-cell"><input name="allocationNote" value={a.allocationNote || ''} onChange={(e) => updateAllocation(idx, e)} className="input" /></td>
-//                       <td className="td-cell">
-//                         <button type="button" onClick={() => removeAllocation(idx)} className="p-2 text-red-500 rounded"><Trash2 /></button>
-//                       </td>
-//                     </tr>
-//                   );
-//                 })}
-//                 {form.allocations.length === 0 && <tr><td colSpan="6" className="text-center py-6 text-muted">No allocations. Add to apply payment to invoices.</td></tr>}
-//               </tbody>
-//             </table>
-//           </div>
-
-//           <div className="mt-4 text-sm space-y-1">
-//             <div className="flex justify-between"><span>Amount</span><span>{totals.amount.toFixed(2)}</span></div>
-//             <div className="flex justify-between"><span>Allocated</span><span>{totals.sumAllocated.toFixed(2)}</span></div>
-//             <div className="flex justify-between"><span>Amount Used</span><span>{totals.amountUsedForPayments.toFixed(2)}</span></div>
-//             <div className="flex justify-between"><span>In Excess</span><span>{totals.amountInExcess.toFixed(2)}</span></div>
-//           </div>
-//         </div>
-
-//         {/* Attachments */}
-//         <div className="p-4 border rounded">
-//           <div className="flex justify-between items-center mb-3">
-//             <h3 className="font-semibold">Attachments</h3>
-//             <button type="button" onClick={addAttachment} className="btn-secondary flex items-center gap-2"><Plus /> Add</button>
-//           </div>
-
-//           <div className="space-y-3">
-//             {form.attachments.map((att, idx) => (
-//               <div key={idx} className="grid grid-cols-6 gap-2 items-center">
-//                 <input name="fileName" value={att.fileName || ''} onChange={(e) => updateAttachment(idx, e)} placeholder="File name" className="input col-span-2" />
-//                 <input name="filePath" value={att.filePath || ''} onChange={(e) => updateAttachment(idx, e)} placeholder="Path or URL" className="input col-span-3" />
-//                 <button type="button" onClick={() => removeAttachment(idx)} className="p-2 text-red-500 rounded"><Trash2 /></button>
-//                 <input name="uploadedBy" value={att.uploadedBy || ''} onChange={(e) => updateAttachment(idx, e)} placeholder="Uploaded by" className="input col-span-2 mt-2" />
-//                 <input name="uploadedAt" value={att.uploadedAt || ''} onChange={(e) => updateAttachment(idx, e)} type="datetime-local" className="input col-span-4 mt-2" />
-//               </div>
-//             ))}
-//             {form.attachments.length === 0 && <div className="text-sm text-muted">No attachments</div>}
-//           </div>
-//         </div>
-
-//         {/* Actions */}
-//         <div className="flex justify-end gap-4">
-//           <button type="button" onClick={() => navigate('/purchase-dashboard/payments')} className="btn-secondary">Cancel</button>
-//           <button type="submit" className="btn-primary flex items-center gap-2">
-//             {loading ? <Loader className="h-4 w-4 animate-spin" /> : <Save />} {isEditing ? 'Update' : 'Save'} Payment
-//           </button>
-//         </div>
-//       </form>
-//     </div>
-//   );
-// };
-
-// export default PurchasePaymentForm;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// import React, { useState, useEffect, useMemo, useRef } from 'react';
-// import { useNavigate, useParams, Link } from 'react-router-dom';
-// import axios from 'axios';
-// import { Plus, Trash2, Save, Loader, ArrowLeft } from 'lucide-react';
-
-// const API_URL = import.meta.env.VITE_API_BASE_URL;
-
-// const Input = ({ label, ...props }) => (
-//   <div>
-//     <label className="block text-sm font-medium text-foreground-muted">{label}</label>
-//     <input {...props} className="input mt-1 bg-background-muted border-border" />
-//   </div>
-// );
-
-// const Select = ({ label, children, ...props }) => (
-//   <div>
-//     <label className="block text-sm font-medium text-foreground-muted">{label}</label>
-//     <select {...props} className="input mt-1 bg-background-muted border-border">{children}</select>
-//   </div>
-// );
-
-// const PurchasePaymentForm = () => {
-//   const { id } = useParams();
-//   const navigate = useNavigate();
-//   const isEditing = Boolean(id);
-//   const fileInputRef = useRef(null);
-
-//   const [form, setForm] = useState({
-//     supplierId: '',
-//     amount: '',
-//     payFullAmount: false,
-//     taxDeducted: false,
-//     tdsAmount: 0,
-//     tdsSection: '',
-//     paymentDate: new Date().toISOString().split('T')[0],
-//     paymentMode: '',
-//     paidThrough: '',
-//     reference: '',
-//     chequeNumber: '',
-//     notes: '',
-//     createdBy: '',
-//     allocations: [], // { invoiceId, allocatedAmount, allocationNote }
-//     attachments: []  // { fileName, filePath, uploadedBy, uploadedAt }
-//   });
-
-//   const [suppliers, setSuppliers] = useState([]);
-//   const [invoices, setInvoices] = useState([]);
-//   const [loading, setLoading] = useState(false);
-//   const [uploading, setUploading] = useState(false);
-//   const [error, setError] = useState('');
-
-//   useEffect(() => {
-//     const load = async () => {
-//       setLoading(true);
-//       try {
-//         const token = localStorage.getItem('token');
-//         const headers = { Authorization: `Bearer ${token}` };
-
-//         // fetch suppliers and invoices for allocations
-//         const [supRes, invRes] = await Promise.all([
-//           axios.get(`${API_URL}/parties`, { headers, params: { type: 'SUPPLIER', page: 0, size: 500 } }),
-//           axios.get(`${API_URL}/purchases/invoices`, { headers, params: { page: 0, size: 500, sort: 'billDate,desc' } })
-//         ]);
-
-//         setSuppliers(supRes.data.content || supRes.data || []);
-//         setInvoices(invRes.data.content || invRes.data || []);
-
-//         if (isEditing) {
-//           const payRes = await axios.get(`${API_URL}/purchases/payments/${id}`, { headers });
-//           const d = payRes.data;
-//           setForm({
-//             supplierId: d.supplierId || '',
-//             amount: d.amount ?? '',
-//             payFullAmount: !!d.payFullAmount,
-//             taxDeducted: !!d.taxDeducted,
-//             tdsAmount: d.tdsAmount ?? 0,
-//             tdsSection: d.tdsSection || '',
-//             paymentDate: d.paymentDate ? new Date(d.paymentDate).toISOString().split('T')[0] : '',
-//             paymentMode: d.paymentMode || '',
-//             paidThrough: d.paidThrough || '',
-//             reference: d.reference || '',
-//             chequeNumber: d.chequeNumber || '',
-//             notes: d.notes || '',
-//             createdBy: d.createdBy || '',
-//             allocations: (d.allocations || []).map(a => ({ id: a.id || null, invoiceId: a.invoiceId, allocatedAmount: a.allocatedAmount || 0, allocationNote: a.allocationNote || '' })),
-//             attachments: (d.attachments || []).map(a => ({ id: a.id || null, fileName: a.fileName, filePath: a.filePath, uploadedBy: a.uploadedBy, uploadedAt: a.uploadedAt }))
-//           });
-//         }
-//       } catch (err) {
-//         console.error('Failed to load masters', err);
-//         setError('Failed to load supporting data.');
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     load();
-//   }, [id, isEditing]);
-
-//   const handleChange = (e) => {
-//     const { name, value, type, checked } = e.target;
-//     const val = type === 'checkbox' ? checked : value;
-//     setForm(prev => ({ ...prev, [name]: val }));
-//   };
-
-//   // allocations handlers
-//   const addAllocation = () => setForm(prev => ({ ...prev, allocations: [...prev.allocations, { invoiceId: '', allocatedAmount: 0, allocationNote: '' }] }));
-//   const removeAllocation = (idx) => setForm(prev => ({ ...prev, allocations: prev.allocations.filter((_, i) => i !== idx) }));
-//   const updateAllocation = (idx, e) => {
-//     const { name, value } = e.target;
-//     setForm(prev => {
-//       const arr = [...prev.allocations];
-//       arr[idx] = { ...arr[idx], [name]: name === 'allocatedAmount' ? Number(value) : value };
-//       return { ...prev, allocations: arr };
-//     });
-//   };
-
-//   // attachments: single Add button opens file picker -> upload -> append returned filePath and fileName
-//   const onAddAttachmentClick = () => fileInputRef.current && fileInputRef.current.click();
-
-//   const onFileSelected = async (e) => {
-//     const files = e.target.files;
-//     if (!files || files.length === 0) return;
-//     const file = files[0];
-
-//     setUploading(true);
-//     setError('');
-//     try {
-//       const fd = new FormData();
-//       fd.append('file', file);
-//       const token = localStorage.getItem('token');
-//       const res = await axios.post(`${API_URL}/uploads`, fd, {
-//         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-//       });
-//       const { fileName, filePath } = res.data;
-//       const att = { id: null, fileName: fileName || file.name, filePath: filePath || '', uploadedBy: form.createdBy || '', uploadedAt: new Date().toISOString() };
-//       setForm(prev => ({ ...prev, attachments: [...prev.attachments, att] }));
-//     } catch (err) {
-//       console.error('Upload failed', err);
-//       setError('File upload failed.');
-//     } finally {
-//       setUploading(false);
-//       if (fileInputRef.current) fileInputRef.current.value = '';
-//     }
-//   };
-
-//   const removeAttachment = (idx) => setForm(prev => ({ ...prev, attachments: prev.attachments.filter((_, i) => i !== idx) }));
-
-//   const totals = useMemo(() => {
-//     const amount = Number(form.amount || 0);
-//     const sumAllocated = (form.allocations || []).reduce((s, a) => s + (Number(a.allocatedAmount || 0)), 0);
-//     const amountPaid = sumAllocated;
-//     const amountUsedForPayments = sumAllocated;
-//     const amountInExcess = Math.max(0, amount - sumAllocated);
-//     return { amount, sumAllocated, amountPaid, amountUsedForPayments, amountInExcess };
-//   }, [form.amount, form.allocations]);
-
-//   const validate = () => {
-//     if (!form.paymentDate) return 'Payment date is required';
-//     if (!form.amount || Number(form.amount) <= 0) return 'Amount must be greater than zero';
-//     return null;
-//   };
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     const v = validate();
-//     if (v) { setError(v); return; }
-//     setLoading(true);
-//     setError('');
-
-//     const payload = {
-//       supplierId: form.supplierId || null,
-//       amount: Number(form.amount),
-//       payFullAmount: !!form.payFullAmount,
-//       taxDeducted: !!form.taxDeducted,
-//       tdsAmount: form.tdsAmount ? Number(form.tdsAmount) : 0,
-//       tdsSection: form.tdsSection || null,
-//       paymentDate: form.paymentDate || null,
-//       paymentMode: form.paymentMode || null,
-//       paidThrough: form.paidThrough || null,
-//       reference: form.reference || null,
-//       chequeNumber: form.chequeNumber || null,
-//       notes: form.notes || null,
-//       createdBy: form.createdBy || null,
-//       allocations: (form.allocations || []).map(a => ({ id: a.id || null, invoiceId: a.invoiceId, allocatedAmount: Number(a.allocatedAmount || 0), allocationNote: a.allocationNote || null })),
-//       attachments: (form.attachments || []).map(a => ({ id: a.id || null, fileName: a.fileName || null, filePath: a.filePath || null, uploadedBy: a.uploadedBy || null, uploadedAt: a.uploadedAt || null }))
-//     };
-
-//     try {
-//       const token = localStorage.getItem('token');
-//       const headers = { Authorization: `Bearer ${token}` };
-
-//       if (isEditing) {
-//         await axios.put(`${API_URL}/purchases/payments/${id}`, payload, { headers });
-//       } else {
-//         await axios.post(`${API_URL}/purchases/payments`, payload, { headers });
-//       }
-//       navigate('/purchase-dashboard/payments');
-//     } catch (err) {
-//       console.error('Failed to save payment', err);
-//       setError(err?.response?.data?.message || 'Failed to save payment.');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   if (loading && !isEditing) {
-//     return <div className="flex justify-center items-center h-64"><Loader className="h-8 w-8 animate-spin text-primary" /></div>;
-//   }
-
-//   return (
-//     <div className="bg-card p-6 rounded-xl shadow-sm">
-//       <div className="flex justify-between items-center mb-6">
-//         <h1 className="text-2xl font-bold text-foreground">{isEditing ? 'Edit Payment' : 'New Payment'}</h1>
-//         <Link to="/purchase-dashboard/payments" className="btn-secondary flex items-center gap-2"><ArrowLeft size={16} /> Back to List</Link>
-//       </div>
-
-//       {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
-
-//       <form onSubmit={handleSubmit} className="space-y-6">
-//         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded">
-//           <Select label="Supplier" name="supplierId" value={form.supplierId} onChange={handleChange}>
-//             <option value="">Select Supplier</option>
-//             {suppliers.map(s => <option key={s.id} value={s.id}>{s.companyName || s.name || `${s.firstName || ''} ${s.lastName || ''}`}</option>)}
-//           </Select>
-
-//           <Input label="Amount" name="amount" type="number" step="0.01" value={form.amount} onChange={handleChange} />
-//           <div className="flex items-center gap-2">
-//             <input id="payFullAmount" name="payFullAmount" type="checkbox" checked={!!form.payFullAmount} onChange={handleChange} />
-//             <label htmlFor="payFullAmount">Pay Full Amount</label>
-//           </div>
-
-//           <div>
-//             <div className="flex items-center gap-2">
-//               <input id="taxDeducted" name="taxDeducted" type="checkbox" checked={!!form.taxDeducted} onChange={handleChange} />
-//               <label htmlFor="taxDeducted">TDS Deducted</label>
-//             </div>
-//             <div className="grid grid-cols-2 gap-2 mt-2">
-//               <input name="tdsAmount" type="number" step="0.01" placeholder="TDS Amount" value={form.tdsAmount} onChange={handleChange} className="input" />
-//               <input name="tdsSection" placeholder="TDS Section" value={form.tdsSection} onChange={handleChange} className="input" />
-//             </div>
-//           </div>
-
-//           <Input label="Payment Date" name="paymentDate" type="date" value={form.paymentDate} onChange={handleChange} />
-//           <Input label="Payment Mode" name="paymentMode" value={form.paymentMode} onChange={handleChange} />
-//           <Input label="Paid Through" name="paidThrough" value={form.paidThrough} onChange={handleChange} />
-//           <Input label="Reference" name="reference" value={form.reference} onChange={handleChange} />
-//           <Input label="Cheque Number" name="chequeNumber" value={form.chequeNumber} onChange={handleChange} />
-//           <div className="col-span-full">
-//             <label className="block text-sm font-medium text-foreground-muted">Notes</label>
-//             <textarea name="notes" value={form.notes} onChange={handleChange} className="input mt-1 bg-background-muted border-border" rows={3} />
-//           </div>
-//           <Input label="Created By" name="createdBy" value={form.createdBy} onChange={handleChange} />
-//         </div>
-
-//         {/* Allocations */}
-//         <div className="p-4 border rounded">
-//           <div className="flex justify-between items-center mb-3">
-//             <h3 className="font-semibold">Allocations</h3>
-//             <button type="button" onClick={addAllocation} className="btn-secondary flex items-center gap-2"><Plus /> Add Allocation</button>
-//           </div>
-
-//           <div className="overflow-x-auto">
-//             <table className="min-w-full">
-//               <thead className="bg-background-muted">
-//                 <tr>
-//                   <th className="th-cell">#</th>
-//                   <th className="th-cell">Invoice</th>
-//                   <th className="th-cell">Invoice Total</th>
-//                   <th className="th-cell">Allocate</th>
-//                   <th className="th-cell">Note</th>
-//                   <th className="th-cell" />
-//                 </tr>
-//               </thead>
-//               <tbody>
-//                 {form.allocations.map((a, idx) => {
-//                   const inv = invoices.find(i => Number(i.id) === Number(a.invoiceId));
-//                   return (
-//                     <tr key={idx} className="border-b">
-//                       <td className="td-cell">{idx + 1}</td>
-//                       <td className="td-cell">
-//                         <select name="invoiceId" value={a.invoiceId || ''} onChange={(e) => updateAllocation(idx, e)} className="input">
-//                           <option value="">Select invoice</option>
-//                           {invoices.map(invOpt => <option key={invOpt.id} value={invOpt.id}>{invOpt.billNumber || (`#${invOpt.id}`)} — {invOpt.supplierName || ''}</option>)}
-//                         </select>
-//                       </td>
-//                       <td className="td-cell">{inv ? (inv.netTotal ?? 0).toFixed(2) : '—'}</td>
-//                       <td className="td-cell"><input name="allocatedAmount" type="number" step="0.01" value={a.allocatedAmount || 0} onChange={(e) => updateAllocation(idx, e)} className="input" /></td>
-//                       <td className="td-cell"><input name="allocationNote" value={a.allocationNote || ''} onChange={(e) => updateAllocation(idx, e)} className="input" /></td>
-//                       <td className="td-cell"><button type="button" onClick={() => removeAllocation(idx)} className="p-2 text-red-500 rounded"><Trash2 /></button></td>
-//                     </tr>
-//                   );
-//                 })}
-//                 {form.allocations.length === 0 && <tr><td colSpan="6" className="text-center py-6 text-foreground-muted">No allocations added</td></tr>}
-//               </tbody>
-//             </table>
-//           </div>
-
-//           <div className="mt-4 text-sm space-y-1">
-//             <div className="flex justify-between"><span>Amount</span><span>{totals.amount.toFixed(2)}</span></div>
-//             <div className="flex justify-between"><span>Allocated</span><span>{totals.sumAllocated.toFixed(2)}</span></div>
-//             <div className="flex justify-between"><span>In Excess</span><span>{totals.amountInExcess.toFixed(2)}</span></div>
-//           </div>
-//         </div>
-
-//         {/* Attachments */}
-//         <div className="p-4 border rounded">
-//           <div className="flex justify-between items-center mb-3">
-//             <h3 className="font-semibold">Attachments</h3>
-//             <div className="flex items-center gap-2">
-//               <button type="button" onClick={onAddAttachmentClick} className="btn-secondary flex items-center gap-2" disabled={uploading}><Plus /> Add</button>
-//               {uploading && <span className="text-sm">Uploading...</span>}
-//             </div>
-//           </div>
-
-//           <input ref={fileInputRef} type="file" className="hidden" onChange={onFileSelected} />
-
-//           <div className="space-y-2">
-//             {form.attachments.length === 0 && <div className="text-sm text-foreground-muted">No attachments uploaded.</div>}
-//             {form.attachments.map((att, idx) => (
-//               <div key={idx} className="flex items-center justify-between gap-4 border p-2 rounded">
-//                 <div>
-//                   <div className="font-medium">{att.fileName}</div>
-//                   <div className="text-xs text-foreground-muted">{att.uploadedAt ? new Date(att.uploadedAt).toLocaleString() : ''}</div>
-//                   {att.filePath && <div className="text-xs"><a className="text-primary underline" href={att.filePath} target="_blank" rel="noreferrer">Open</a></div>}
-//                 </div>
-//                 <div><button type="button" onClick={() => removeAttachment(idx)} className="p-2 text-red-500 rounded"><Trash2 /></button></div>
-//               </div>
-//             ))}
-//           </div>
-//         </div>
-
-//         {/* Actions */}
-//         <div className="flex justify-end gap-4">
-//           <button type="button" onClick={() => navigate('/purchase-dashboard/payments')} className="btn-secondary">Cancel</button>
-//           <button type="submit" className="btn-primary flex items-center gap-2" disabled={loading}>
-//             {loading ? <Loader className="h-4 w-4 animate-spin" /> : <Save size={16} />} {isEditing ? 'Update' : 'Save'} Payment
-//           </button>
-//         </div>
-//       </form>
-//     </div>
-//   );
-// };
-
-// export default PurchasePaymentForm;
-
-
-
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { Plus, Trash2, Save, Loader, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Save, Loader, ArrowLeft, Paperclip, Calculator } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_BASE_URL;
+const API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 const Input = ({ label, ...props }) => (
   <div>
     <label className="block text-sm font-medium text-foreground-muted">{label}</label>
-    <input {...props} className="input mt-1 bg-background-muted border-border" />
+    <input {...props} className="input mt-1 bg-background-muted border-border w-full rounded border px-3 py-2 text-sm" />
   </div>
 );
 
 const Select = ({ label, children, ...props }) => (
   <div>
     <label className="block text-sm font-medium text-foreground-muted">{label}</label>
-    <select {...props} className="input mt-1 bg-background-muted border-border">{children}</select>
+    <select {...props} className="input mt-1 bg-background-muted border-border w-full rounded border px-3 py-2 text-sm">{children}</select>
   </div>
 );
 
 const PurchasePaymentForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const isEditing = Boolean(id);
   const fileInputRef = useRef(null);
 
@@ -1073,298 +39,411 @@ const PurchasePaymentForm = () => {
     reference: '',
     chequeNumber: '',
     notes: '',
-    createdBy: '',
+    createdBy: 'Admin', // Default or from context
     allocations: [], // { invoiceId, allocatedAmount, allocationNote }
-    attachments: []  // { fileName, filePath, uploadedBy, uploadedAt }
+    attachments: []
   });
 
   const [suppliers, setSuppliers] = useState([]);
-  const [invoices, setInvoices] = useState([]);
+  const [unpaidInvoices, setUnpaidInvoices] = useState([]); // Invoices available for allocation
   const [loading, setLoading] = useState(false);
+  const [fetchingInvoices, setFetchingInvoices] = useState(false);
+  const [newAttachmentFiles, setNewAttachmentFiles] = useState([]);
   const [error, setError] = useState('');
 
+  // Fetch Suppliers on Mount & Handle Pre-fill
   useEffect(() => {
-    const load = async () => {
+    const loadSuppliers = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await axios.get(`${API_URL}/parties`, { headers, params: { type: 'SUPPLIER', page: 0, size: 500 } });
+        setSuppliers(res.data.content || res.data || []);
+
+        // Pre-fill from navigation state (Bill View -> Make Payment)
+        if (!isEditing && location.state?.supplierId) {
+             setForm(prev => ({ ...prev, supplierId: location.state.supplierId }));
+             // Trigger fetching invoices
+             fetchUnpaidInvoices(location.state.supplierId);
+        }
+
+      } catch (err) {
+        console.error('Failed to load suppliers', err);
+      }
+    };
+    loadSuppliers();
+  }, [location.state, isEditing]); // Depend on location.state
+
+  // Fetch Payment Data if Editing
+  useEffect(() => {
+    if (!isEditing) return;
+
+    const loadPayment = async () => {
       setLoading(true);
       try {
         const token = localStorage.getItem('token');
-        const headers = { Authorization: `Bearer ${token}` };
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await axios.get(`${API_URL}/purchases/payments/${id}`, { headers });
+        const d = res.data;
 
-        // fetch suppliers and invoices for allocations
-        const [supRes, invRes] = await Promise.all([
-          axios.get(`${API_URL}/parties`, { headers, params: { type: 'SUPPLIER', page: 0, size: 500 } }),
-          axios.get(`${API_URL}/purchases/invoices`, { headers, params: { page: 0, size: 500, sort: 'billDate,desc' } })
-        ]);
+        setForm({
+          supplierId: d.supplierId || '',
+          amount: d.amount ?? '',
+          payFullAmount: !!d.payFullAmount,
+          taxDeducted: !!d.taxDeducted,
+          tdsAmount: d.tdsAmount ?? 0,
+          tdsSection: d.tdsSection || '',
+          paymentDate: d.paymentDate ? new Date(d.paymentDate).toISOString().split('T')[0] : '',
+          paymentMode: d.paymentMode || '',
+          paidThrough: d.paidThrough || '',
+          reference: d.reference || '',
+          chequeNumber: d.chequeNumber || '',
+          notes: d.notes || '',
+          createdBy: d.createdBy || '',
+          allocations: (d.allocations || []).map(a => ({
+            id: a.id || null, // Allocation ID
+            invoiceId: a.invoiceId,
+            allocatedAmount: a.allocatedAmount || 0,
+            allocationNote: a.allocationNote || ''
+          })),
+          attachments: (d.attachments || []).map(a => ({
+            id: a.id,
+            fileName: a.fileName,
+            filePath: a.filePath,
+            uploadedBy: a.uploadedBy,
+            uploadedAt: a.uploadedAt,
+            url: a.url
+          }))
+        });
 
-        setSuppliers(supRes.data.content || supRes.data || []);
-        setInvoices(invRes.data.content || invRes.data || []);
-
-        if (isEditing) {
-          const payRes = await axios.get(`${API_URL}/purchases/payments/${id}`, { headers });
-          const d = payRes.data;
-          setForm({
-            supplierId: d.supplierId || '',
-            amount: d.amount ?? '',
-            payFullAmount: !!d.payFullAmount,
-            taxDeducted: !!d.taxDeducted,
-            tdsAmount: d.tdsAmount ?? 0,
-            tdsSection: d.tdsSection || '',
-            paymentDate: d.paymentDate ? new Date(d.paymentDate).toISOString().split('T')[0] : '',
-            paymentMode: d.paymentMode || '',
-            paidThrough: d.paidThrough || '',
-            reference: d.reference || '',
-            chequeNumber: d.chequeNumber || '',
-            notes: d.notes || '',
-            createdBy: d.createdBy || '',
-            allocations: (d.allocations || []).map(a => ({ id: a.id || null, invoiceId: a.invoiceId, allocatedAmount: a.allocatedAmount || 0, allocationNote: a.allocationNote || '' })),
-            attachments: (d.attachments || []).map(a => ({ id: a.id || null, fileName: a.fileName, filePath: a.filePath, uploadedBy: a.uploadedBy, uploadedAt: a.uploadedAt }))
-          });
+        if (d.supplierId) {
+            fetchUnpaidInvoices(d.supplierId);
         }
+
       } catch (err) {
-        console.error('Failed to load masters', err);
-        setError('Failed to load supporting data.');
+        console.error('Failed to load payment', err);
+        setError('Failed to load payment details.');
       } finally {
         setLoading(false);
       }
     };
-
-    load();
+    loadPayment();
   }, [id, isEditing]);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    const val = type === 'checkbox' ? checked : value;
-    setForm(prev => ({ ...prev, [name]: val }));
-  };
-
-  // allocations handlers
-  const addAllocation = () => setForm(prev => ({ ...prev, allocations: [...prev.allocations, { invoiceId: '', allocatedAmount: 0, allocationNote: '' }] }));
-  const removeAllocation = (idx) => setForm(prev => ({ ...prev, allocations: prev.allocations.filter((_, i) => i !== idx) }));
-  const updateAllocation = (idx, e) => {
-    const { name, value } = e.target;
-    setForm(prev => {
-      const arr = [...prev.allocations];
-      arr[idx] = { ...arr[idx], [name]: name === 'allocatedAmount' ? Number(value) : value };
-      return { ...prev, allocations: arr };
-    });
-  };
-
-  // attachments: single Add button opens file picker -> capture metadata only (no upload)
-  const onAddAttachmentClick = () => fileInputRef.current && fileInputRef.current.click();
-
-  const onFileSelected = (e) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const file = files[0];
-
-    // Create metadata only (no actual upload). filePath left empty (or you could use URL.createObjectURL for preview).
-    const att = {
-      id: null,
-      fileName: file.name,
-      filePath: '', // empty since no server upload. Use object URL for preview if desired.
-      uploadedBy: form.createdBy || '',
-      uploadedAt: new Date().toISOString()
-    };
-
-    setForm(prev => ({ ...prev, attachments: [...prev.attachments, att] }));
-
-    // clear the input so user can re-select the same file later if needed
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const removeAttachment = (idx) => setForm(prev => ({ ...prev, attachments: prev.attachments.filter((_, i) => i !== idx) }));
-
-  const totals = useMemo(() => {
-    const amount = Number(form.amount || 0);
-    const sumAllocated = (form.allocations || []).reduce((s, a) => s + (Number(a.allocatedAmount || 0)), 0);
-    const amountPaid = sumAllocated;
-    const amountUsedForPayments = sumAllocated;
-    const amountInExcess = Math.max(0, amount - sumAllocated);
-    return { amount, sumAllocated, amountPaid, amountUsedForPayments, amountInExcess };
-  }, [form.amount, form.allocations]);
-
-  const validate = () => {
-    if (!form.paymentDate) return 'Payment date is required';
-    if (!form.amount || Number(form.amount) <= 0) return 'Amount must be greater than zero';
-    return null;
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const v = validate();
-    if (v) { setError(v); return; }
-    setLoading(true);
-    setError('');
-
-    const payload = {
-      supplierId: form.supplierId || null,
-      amount: Number(form.amount),
-      payFullAmount: !!form.payFullAmount,
-      taxDeducted: !!form.taxDeducted,
-      tdsAmount: form.tdsAmount ? Number(form.tdsAmount) : 0,
-      tdsSection: form.tdsSection || null,
-      paymentDate: form.paymentDate || null,
-      paymentMode: form.paymentMode || null,
-      paidThrough: form.paidThrough || null,
-      reference: form.reference || null,
-      chequeNumber: form.chequeNumber || null,
-      notes: form.notes || null,
-      createdBy: form.createdBy || null,
-      allocations: (form.allocations || []).map(a => ({ id: a.id || null, invoiceId: a.invoiceId, allocatedAmount: Number(a.allocatedAmount || 0), allocationNote: a.allocationNote || null })),
-      attachments: (form.attachments || []).map(a => ({ id: a.id || null, fileName: a.fileName || null, filePath: a.filePath || null, uploadedBy: a.uploadedBy || null, uploadedAt: a.uploadedAt || null }))
-    };
-
+  const fetchUnpaidInvoices = async (supId) => {
+    if (!supId) {
+        setUnpaidInvoices([]);
+        return;
+    }
+    setFetchingInvoices(true);
     try {
       const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-
-      if (isEditing) {
-        await axios.put(`${API_URL}/purchases/payments/${id}`, payload, { headers });
-      } else {
-        await axios.post(`${API_URL}/purchases/payments`, payload, { headers });
-      }
-      navigate('/purchase-dashboard/payments');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await axios.get(`${API_URL}/purchases/payments/unpaid-invoices`, { 
+        headers, 
+        params: { supplierId: supId } 
+      });
+      setUnpaidInvoices(res.data || []);
     } catch (err) {
-      console.error('Failed to save payment', err);
-      setError(err?.response?.data?.message || 'Failed to save payment.');
+      console.error('Failed to load unpaid invoices', err);
     } finally {
-      setLoading(false);
+      setFetchingInvoices(false);
     }
   };
 
-  if (loading && !isEditing) {
-    return <div className="flex justify-center items-center h-64"><Loader className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
+  // Effect to auto-allocate invoice from navigation state once invoices are loaded
+  useEffect(() => {
+     if (!isEditing && location.state?.invoiceId && unpaidInvoices.length > 0) {
+         // Check if already allocated to avoid loops or overwrites
+         const alreadyAllocated = form.allocations.some(a => a.invoiceId === location.state.invoiceId); 
+         if (!alreadyAllocated) {
+             const targetInv = unpaidInvoices.find(inv => inv.id === location.state.invoiceId);
+             if (targetInv) {
+                 const due = targetInv.netTotal - (targetInv.paidAmount || 0);
+                 setForm(prev => ({
+                     ...prev,
+                     amount: due, 
+                     allocations: [{ invoiceId: targetInv.id, allocatedAmount: due, allocationNote: '' }]
+                 }));
+             }
+         }
+     }
+  }, [unpaidInvoices, location.state, isEditing]);
+
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSupplierChange = (e) => {
+      const supId = e.target.value;
+      setForm(prev => ({ ...prev, supplierId: supId, allocations: [] }));
+      fetchUnpaidInvoices(supId);
+  };
+
+  const handleFileChange = (e) => {
+      setNewAttachmentFiles(Array.from(e.target.files));
+  };
+
+  // Allocations Logic
+  const handleAllocationChange = (index, field, value) => {
+      const newAlloc = [...form.allocations];
+      newAlloc[index][field] = value;
+      setForm(prev => ({ ...prev, allocations: newAlloc }));
+  };
+
+  const addAllocation = () => {
+      setForm(prev => ({
+          ...prev,
+          allocations: [...prev.allocations, { invoiceId: '', allocatedAmount: 0, allocationNote: '' }]
+      }));
+  };
+
+  const removeAllocation = (index) => {
+      const newAlloc = [...form.allocations];
+      newAlloc.splice(index, 1);
+      setForm(prev => ({ ...prev, allocations: newAlloc }));
+  };
+
+  // Auto-calculate Total Allocation vs Amount
+  const totalAllocated = form.allocations.reduce((acc, curr) => acc + Number(curr.allocatedAmount || 0), 0);
+  const excessAmount = (Number(form.amount || 0) - totalAllocated);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.supplierId) {
+        alert("Please select a supplier");
+        return;
+    }
+    if (Number(form.amount) <= 0) {
+        alert("Amount must be greater than zero");
+        return;
+    }
+    
+    setLoading(true);
+    try {
+        const token = localStorage.getItem('token');
+        const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' };
+        
+        const formData = new FormData();
+        // Append simple fields
+        Object.keys(form).forEach(key => {
+            if (key !== 'allocations' && key !== 'attachments') {
+                formData.append(key, form[key]);
+            }
+        });
+        
+        // Append allocations complex list
+        // Backend expects List<AllocationDTO> logic usually via indexed keys or JSON string 
+        // For FormData with Spring Boot DTO binding, indexed approach: allocations[0].invoiceId
+        form.allocations.forEach((alloc, index) => {
+             formData.append(`allocations[${index}].invoiceId`, alloc.invoiceId);
+             if(alloc.id) formData.append(`allocations[${index}].id`, alloc.id);
+             formData.append(`allocations[${index}].allocatedAmount`, alloc.allocatedAmount);
+             formData.append(`allocations[${index}].allocationNote`, alloc.allocationNote || '');
+        });
+
+        // Append New Attachments
+        newAttachmentFiles.forEach(file => {
+            formData.append('files', file);
+        });
+
+        if (isEditing) {
+            await axios.put(`${API_URL}/purchases/payments/${id}`, formData, { headers });
+            alert("Payment updated successfully");
+        } else {
+            await axios.post(`${API_URL}/purchases/payments`, formData, { headers });
+            alert("Payment created successfully");
+        }
+        navigate('/purchase-dashboard/payments');
+
+    } catch (err) {
+        console.error("Submit error", err);
+        alert("Failed to save payment. " + (err.response?.data?.message || err.message));
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  if (loading && isEditing) return <div className="flex justify-center items-center h-screen"><Loader className="animate-spin text-blue-600" /></div>;
 
   return (
-    <div className="bg-card p-6 rounded-xl shadow-sm">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{isEditing ? 'Edit Payment' : 'New Payment'}</h1>
-        <Link to="/purchase-dashboard/payments" className="btn-secondary flex items-center gap-2"><ArrowLeft size={16} /> Back to List</Link>
+    <div className="bg-slate-50 min-h-screen pb-12">
+      <div className="bg-white border-b px-6 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+         <div className="flex items-center gap-4">
+             <Link to="/purchase-dashboard/payments" className="p-2 hover:bg-slate-100 rounded-full text-slate-600 transition">
+                 <ArrowLeft size={20} />
+             </Link>
+             <div>
+                <h1 className="text-xl font-bold text-slate-800">{isEditing ? 'Edit Payment' : 'Record Payment'}</h1>
+                <p className="text-xs text-slate-500">Record a payment made to a supplier</p>
+             </div>
+         </div>
+         <div className="flex gap-2">
+             <button onClick={() => navigate('/purchase-dashboard/payments')} className="px-4 py-2 border rounded text-slate-600 hover:bg-slate-50 text-sm font-medium">Cancel</button>
+             <button onClick={handleSubmit} disabled={loading} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm font-medium flex items-center gap-2 shadow-sm transition-all hover:shadow-md">
+                 {loading ? <Loader size={16} className="animate-spin"/> : <Save size={16}/>} Save Payment
+             </button>
+         </div>
       </div>
 
-      {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+      <div className="max-w-5xl mx-auto mt-8 px-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+          
+          {/* LEFT COLUMN - MAIN FORM */}
+          <div className="lg:col-span-2 space-y-6">
+              
+              {/* Supplier & Amount Section */}
+              <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                  <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-4 pb-2 border-b">Payment Details</h2>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Select label="Supplier *" name="supplierId" value={form.supplierId} onChange={handleSupplierChange} disabled={isEditing || (location.state?.supplierId && !isEditing)}>
+                          <option value="">Select Supplier</option>
+                          {suppliers.map(s => <option key={s.id} value={s.id}>{s.name} {s.code ? `(${s.code})` : ''}</option>)}
+                      </Select>
+                      
+                      <div className="relative">
+                          <Input label="Amount Paid *" type="number" step="0.01" name="amount" value={form.amount} onChange={handleChange} placeholder="0.00" className="pl-8 font-bold text-lg" />
+                          <span className="absolute left-3 top-9 text-slate-400 font-bold">AED</span>
+                      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded">
-          <Select label="Supplier" name="supplierId" value={form.supplierId} onChange={handleChange}>
-            <option value="">Select Supplier</option>
-            {suppliers.map(s => <option key={s.id} value={s.id}>{s.companyName || s.name || `${s.firstName || ''} ${s.lastName || ''}`}</option>)}
-          </Select>
+                      <Input label="Payment Date *" type="date" name="paymentDate" value={form.paymentDate} onChange={handleChange} />
+                      
+                      <Select label="Payment Mode" name="paymentMode" value={form.paymentMode} onChange={handleChange}>
+                          <option value="">Select Mode</option>
+                          <option value="Cash">Cash</option>
+                          <option value="Bank Transfer">Bank Transfer</option>
+                          <option value="Cheque">Cheque</option>
+                          <option value="Credit Card">Credit Card</option>
+                      </Select>
+                  </div>
 
-          <Input label="Amount" name="amount" type="number" step="0.01" value={form.amount} onChange={handleChange} />
-          <div className="flex items-center gap-2">
-            <input id="payFullAmount" name="payFullAmount" type="checkbox" checked={!!form.payFullAmount} onChange={handleChange} />
-            <label htmlFor="payFullAmount">Pay Full Amount</label>
-          </div>
+                  <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Select label="Paid Through" name="paidThrough" value={form.paidThrough} onChange={handleChange}>
+                          <option value="">Select Account</option>
+                          <option value="Petty Cash">Petty Cash</option>
+                          <option value="Main Bank Account">Main Bank Account</option>
+                      </Select>
+                      <Input label="Reference #" name="reference" value={form.reference} onChange={handleChange} placeholder="e.g. TRN-10293" />
+                  </div>
 
-          <div>
-            <div className="flex items-center gap-2">
-              <input id="taxDeducted" name="taxDeducted" type="checkbox" checked={!!form.taxDeducted} onChange={handleChange} />
-              <label htmlFor="taxDeducted">TDS Deducted</label>
-            </div>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              <input name="tdsAmount" type="number" step="0.01" placeholder="TDS Amount" value={form.tdsAmount} onChange={handleChange} className="input" />
-              <input name="tdsSection" placeholder="TDS Section" value={form.tdsSection} onChange={handleChange} className="input" />
-            </div>
-          </div>
-
-          <Input label="Payment Date" name="paymentDate" type="date" value={form.paymentDate} onChange={handleChange} />
-          <Input label="Payment Mode" name="paymentMode" value={form.paymentMode} onChange={handleChange} />
-          <Input label="Paid Through" name="paidThrough" value={form.paidThrough} onChange={handleChange} />
-          <Input label="Reference" name="reference" value={form.reference} onChange={handleChange} />
-          <Input label="Cheque Number" name="chequeNumber" value={form.chequeNumber} onChange={handleChange} />
-          <div className="col-span-full">
-            <label className="block text-sm font-medium text-foreground-muted">Notes</label>
-            <textarea name="notes" value={form.notes} onChange={handleChange} className="input mt-1 bg-background-muted border-border" rows={3} />
-          </div>
-          <Input label="Created By" name="createdBy" value={form.createdBy} onChange={handleChange} />
-        </div>
-
-        {/* Allocations */}
-        <div className="p-4 border rounded">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold">Allocations</h3>
-            <button type="button" onClick={addAllocation} className="btn-secondary flex items-center gap-2"><Plus /> Add Allocation</button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
-              <thead className="bg-background-muted">
-                <tr>
-                  <th className="th-cell">#</th>
-                  <th className="th-cell">Invoice</th>
-                  <th className="th-cell">Invoice Total</th>
-                  <th className="th-cell">Allocate</th>
-                  <th className="th-cell">Note</th>
-                  <th className="th-cell" />
-                </tr>
-              </thead>
-              <tbody>
-                {form.allocations.map((a, idx) => {
-                  const inv = invoices.find(i => Number(i.id) === Number(a.invoiceId));
-                  return (
-                    <tr key={idx} className="border-b">
-                      <td className="td-cell">{idx + 1}</td>
-                      <td className="td-cell">
-                        <select name="invoiceId" value={a.invoiceId || ''} onChange={(e) => updateAllocation(idx, e)} className="input">
-                          <option value="">Select invoice</option>
-                          {invoices.map(invOpt => <option key={invOpt.id} value={invOpt.id}>{invOpt.billNumber || (`#${invOpt.id}`)} — {invOpt.supplierName || ''}</option>)}
-                        </select>
-                      </td>
-                      <td className="td-cell">{inv ? (inv.netTotal ?? 0).toFixed(2) : '—'}</td>
-                      <td className="td-cell"><input name="allocatedAmount" type="number" step="0.01" value={a.allocatedAmount || 0} onChange={(e) => updateAllocation(idx, e)} className="input" /></td>
-                      <td className="td-cell"><input name="allocationNote" value={a.allocationNote || ''} onChange={(e) => updateAllocation(idx, e)} className="input" /></td>
-                      <td className="td-cell"><button type="button" onClick={() => removeAllocation(idx)} className="p-2 text-red-500 rounded"><Trash2 /></button></td>
-                    </tr>
-                  );
-                })}
-                {form.allocations.length === 0 && <tr><td colSpan="6" className="text-center py-6 text-foreground-muted">No allocations added</td></tr>}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="mt-4 text-sm space-y-1">
-            <div className="flex justify-between"><span>Amount</span><span>{totals.amount.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span>Allocated</span><span>{totals.sumAllocated.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span>In Excess</span><span>{totals.amountInExcess.toFixed(2)}</span></div>
-          </div>
-        </div>
-
-        {/* Attachments (metadata-only) */}
-        <div className="p-4 border rounded">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="font-semibold">Attachments</h3>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={onAddAttachmentClick} className="btn-secondary flex items-center gap-2"><Plus /> Add</button>
-            </div>
-          </div>
-
-          <input ref={fileInputRef} type="file" className="hidden" onChange={onFileSelected} />
-
-          <div className="space-y-2">
-            {form.attachments.length === 0 && <div className="text-sm text-foreground-muted">No attachments added.</div>}
-            {form.attachments.map((att, idx) => (
-              <div key={idx} className="flex items-center justify-between gap-4 border p-2 rounded">
-                <div>
-                  <div className="font-medium">{att.fileName}</div>
-                  <div className="text-xs text-foreground-muted">{att.uploadedAt ? new Date(att.uploadedAt).toLocaleString() : ''}</div>
-                  {att.filePath && <div className="text-xs"><a className="text-primary underline" href={att.filePath} target="_blank" rel="noreferrer">Open</a></div>}
-                </div>
-                <div><button type="button" onClick={() => removeAttachment(idx)} className="p-2 text-red-500 rounded"><Trash2 /></button></div>
+                   {form.paymentMode === 'Cheque' && (
+                       <div className="mt-6">
+                           <Input label="Cheque Number" name="chequeNumber" value={form.chequeNumber} onChange={handleChange} />
+                       </div>
+                   )}
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Actions */}
-        <div className="flex justify-end gap-4">
-          <button type="button" onClick={() => navigate('/purchase-dashboard/payments')} className="btn-secondary">Cancel</button>
-          <button type="submit" className="btn-primary flex items-center gap-2" disabled={loading}>
-            {loading ? <Loader className="h-4 w-4 animate-spin" /> : <Save size={16} />} {isEditing ? 'Update' : 'Save'} Payment
-          </button>
-        </div>
-      </form>
+               {/* Allocation Section */}
+               <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                   <div className="flex justify-between items-center mb-4 pb-2 border-b">
+                      <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide">Bill Allocation</h2>
+                      <div className="text-xs font-medium bg-slate-100 px-2 py-1 rounded text-slate-600">
+                          Total Allocated: {totalAllocated.toFixed(2)} / {Number(form.amount || 0).toFixed(2)}
+                      </div>
+                   </div>
+
+                   {form.supplierId ? (
+                       <div className="space-y-4">
+                           {form.allocations.map((alloc, idx) => {
+                               const selectedInv = unpaidInvoices.find(inv => inv.id == alloc.invoiceId);
+                               const maxDue = selectedInv ? (selectedInv.netTotal - (selectedInv.paidAmount || 0)) : 0;
+                               
+                               return (
+                                   <div key={idx} className="flex gap-4 items-end bg-slate-50 p-3 rounded border border-slate-200">
+                                        <div className="flex-1">
+                                            <label className="text-xs font-medium text-slate-500 mb-1 block">Bill Number</label>
+                                            <select 
+                                                className="w-full text-sm border rounded p-2"
+                                                value={alloc.invoiceId}
+                                                onChange={(e) => handleAllocationChange(idx, 'invoiceId', e.target.value)}
+                                            >
+                                                <option value="">Select Bill</option>
+                                                {unpaidInvoices.map(inv => (
+                                                    <option key={inv.id} value={inv.id}>
+                                                        {inv.billNumber} (Due: {inv.netTotal - (inv.paidAmount||0)}) - {new Date(inv.billDate).toLocaleDateString()}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div className="w-32">
+                                            <label className="text-xs font-medium text-slate-500 mb-1 block">Amount</label>
+                                            <input 
+                                                type="number" 
+                                                className="w-full text-sm border rounded p-2 text-right"
+                                                value={alloc.allocatedAmount}
+                                                onChange={(e) => handleAllocationChange(idx, 'allocatedAmount', e.target.value)}
+                                                max={maxDue}
+                                            />
+                                            {selectedInv && <div className="text-[10px] text-slate-400 text-right mt-1">Max: {maxDue}</div>}
+                                        </div>
+                                        <button onClick={() => removeAllocation(idx)} className="p-2 text-red-500 hover:bg-red-50 rounded">
+                                            <Trash2 size={16} />
+                                        </button>
+                                   </div>
+                               );
+                           })}
+                           
+                           <button onClick={addAllocation} className="text-sm text-blue-600 font-medium flex items-center gap-1 hover:underline mt-2">
+                               <Plus size={16} /> Add another bill
+                           </button>
+
+                           {/* Excess Warning */}
+                           {excessAmount > 0 && (
+                               <div className="mt-4 p-3 bg-yellow-50 text-yellow-800 text-sm rounded border border-yellow-200 flex items-center gap-2">
+                                   <Calculator size={16} />
+                                   You have AED {excessAmount.toFixed(2)} in excess. This will be recorded as unused credits.
+                               </div>
+                           )}
+                           {excessAmount < 0 && (
+                               <div className="mt-4 p-3 bg-red-50 text-red-800 text-sm rounded border border-red-200">
+                                   Error: You have allocated more than the payment amount!
+                               </div>
+                           )}
+                       </div>
+                   ) : (
+                       <div className="text-center py-8 text-slate-400 text-sm italic">
+                           Select a supplier to see unpaid bills.
+                       </div>
+                   )}
+               </div>
+          </div>
+
+          {/* RIGHT COLUMN - META */}
+          <div className="space-y-6">
+               <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-4 pb-2 border-b">Additional Info</h2>
+                    <div className="space-y-4">
+                        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                            <input type="checkbox" name="payFullAmount" checked={form.payFullAmount} onChange={handleChange} className="rounded border-slate-300" />
+                            Pay Full Amount
+                        </label>
+                        <div className="border-t pt-4">
+                             <label className="block text-xs font-medium text-slate-500 mb-1">Notes / Remarks</label>
+                             <textarea name="notes" value={form.notes} onChange={handleChange} rows={4} className="w-full text-sm border-slate-300 rounded resize-none p-2 bg-slate-50" placeholder="Internal notes..." />
+                        </div>
+                    </div>
+               </div>
+
+               <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+                    <h2 className="text-sm font-bold text-slate-800 uppercase tracking-wide mb-4 pb-2 border-b">Attachments</h2>
+                    <div className="space-y-3">
+                         {form.attachments.map(att => (
+                             <div key={att.id} className="flex justify-between items-center text-xs bg-slate-50 p-2 rounded">
+                                 <a href={att.url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline truncate max-w-[150px]">{att.fileName}</a>
+                                 <span className="text-slate-400">Existing</span>
+                             </div>
+                         ))}
+                         
+                         <input type="file" multiple ref={fileInputRef} onChange={handleFileChange} className="block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                    </div>
+               </div>
+          </div>
+      </div>
     </div>
   );
 };

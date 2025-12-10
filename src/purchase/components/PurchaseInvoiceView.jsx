@@ -1,39 +1,47 @@
-// PurchaseInvoiceView.jsx
-import React, { useEffect, useRef, useState } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { ArrowLeft, Printer, CreditCard, MoreVertical, Edit, Loader } from 'lucide-react';
+import { Loader, Printer, ArrowLeft, Mail, Paperclip, FileText, Edit, ChevronDown } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_BASE_URL || '';
 
-const ActionBtn = ({ children, onClick, className = '' }) => (
-  <button type="button" onClick={onClick} className={`btn-secondary flex items-center gap-2 ${className}`}>
-    {children}
-  </button>
-);
+// Basic number to words converter
+const numberToWords = (num) => {
+    if (!num) return 'Zero';
+    const a = ['','One ','Two ','Three ','Four ','Five ','Six ','Seven ','Eight ','Nine ','Ten ','Eleven ','Twelve ','Thirteen ','Fourteen ','Fifteen ','Sixteen ','Seventeen ','Eighteen ','Nineteen '];
+    const b = ['', '', 'Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+    
+    const n = ('000000000' + num).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    if (!n) return ''; 
+    let str = '';
+    str += (n[1] != 0) ? (a[Number(n[1])] || b[n[1][0]] + ' ' + a[n[1][1]]) + 'Crore ' : '';
+    str += (n[2] != 0) ? (a[Number(n[2])] || b[n[2][0]] + ' ' + a[n[2][1]]) + 'Lakh ' : '';
+    str += (n[3] != 0) ? (a[Number(n[3])] || b[n[3][0]] + ' ' + a[n[3][1]]) + 'Thousand ' : '';
+    str += (n[4] != 0) ? (a[Number(n[4])] || b[n[4][0]] + ' ' + a[n[4][1]]) + 'Hundred ' : '';
+    str += (n[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n[5])] || b[n[5][0]] + ' ' + a[n[5][1]]) : '';
+    return str.trim();
+};
 
 const PurchaseInvoiceView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const printableRef = useRef(null);
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [tenantInfo, setTenantInfo] = useState({ name: 'Transcold Air conditioner spare parts trading llc', address: 'Abu Dhabi', logo: '/logo.png' }); // Placeholder
 
   useEffect(() => {
+    if (!id) return;
     const load = async () => {
       setLoading(true);
-      setError('');
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`${API_URL}/purchases/invoices/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await axios.get(`${API_URL}/purchases/invoices/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         setInvoice(res.data);
       } catch (err) {
-        console.error('Failed to load invoice', err);
-        setError('Failed to load invoice. Make sure the backend endpoint exists and you are authenticated.');
+        console.error('Failed to load Invoice', err);
+        setError('Unable to load purchase invoice.');
       } finally {
         setLoading(false);
       }
@@ -41,146 +49,255 @@ const PurchaseInvoiceView = () => {
     load();
   }, [id]);
 
-  const onPrint = (useLetterhead = false) => {
-    // print the printableRef contents in a new window
-    if (!printableRef.current) return;
-    const html = printableRef.current.innerHTML;
-    const w = window.open('', '_blank', 'width=900,height=700');
-    if (!w) return;
-    w.document.write(`
-      <html>
-        <head>
-          <title>Print - ${invoice?.billNumber || 'Invoice'}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; color: #111 }
-            .receipt { width: 100%; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 6px 8px; border: 1px solid #ccc; }
-            .right { text-align: right; }
-          </style>
-        </head>
-        <body>
-          ${html}
-        </body>
-      </html>`);
-    w.document.close();
-    w.focus();
-    // wait a tick for resources then print
-    setTimeout(() => { w.print(); /* w.close(); */ }, 300);
+  const handlePrint = () => {
+    window.print();
   };
 
-  const onRecordPayment = () => {
-    // navigate to new payment page with invoice info in query string so Payment form can prefill
-    const amount = invoice?.netTotal ?? 0;
-    navigate(`/purchase-dashboard/payments/new?invoiceId=${id}&amount=${amount}`);
-  };
+  if (loading) return <div className="flex justify-center items-center h-screen"><Loader className="animate-spin text-blue-600" size={40} /></div>;
+  if (!invoice) return <div className="p-8 text-center text-red-500">{error || 'Invoice not found'}</div>;
 
-  const onConvert = () => {
-    // placeholder for "Convert to ..." actions, implement backend call if needed
-    alert('Convert action clicked — implement backend call here.');
-  };
-
-  const handleMoreAction = (action) => {
-    setIsMoreMenuOpen(false); // Close dropdown
-    if (action === 'print') onPrint(false);
-    else if (action === 'printLetterhead') onPrint(true);
-    else if (action === 'email') {
-      window.location.href = `mailto:?subject=Invoice ${invoice?.billNumber || id}&body=Please find attached invoice ${invoice?.billNumber || id}.`;
-    }
-    else onConvert();
-  };
-
-  if (loading) return <div className="flex justify-center items-center h-64"><Loader className="animate-spin h-8 w-8 text-primary" /></div>;
-  if (error) return <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>;
-  if (!invoice) return null;
+  const totalAmountWords = numberToWords(Math.floor(invoice.netTotal || 0));
 
   return (
-    <div className="bg-card p-6 rounded-xl shadow-sm">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/purchase-dashboard/bills')} className="btn-secondary flex items-center gap-2"><ArrowLeft /> Back to List</button>
-          <h1 className="text-2xl font-bold">{`Bill ${invoice.billNumber || ''}`}</h1>
-        </div>
+    <div className="bg-slate-50 min-h-screen pb-12 print:bg-white print:pb-0 font-sans">
+      {/* Breadcrumb & Top Bar - Hidden in Print */}
+      <div className="print:hidden">
+          <div className="bg-white border-b px-6 py-3 flex justify-between items-center text-xs text-slate-600">
+             <div className="flex items-center gap-2">
+                <Link to="/" className="hover:text-blue-600">Home</Link> / 
+                <Link to="/purchase-dashboard/bills" className="hover:text-blue-600">Purchase Bills</Link> / 
+                <span className="text-slate-900 font-medium">View Bill</span>
+             </div>
+             <div className="flex gap-2">
+                 <Link to="/purchase-dashboard/bills" className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition">All Bills</Link>
+                 <Link to="/purchase-dashboard/bills/new" className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 transition">+ New Bill</Link>
+             </div>
+          </div>
 
-        <div className="flex items-center gap-2">
-          <ActionBtn onClick={() => navigate(`/purchase-dashboard/bills/edit/${id}`)}><Edit /> Edit</ActionBtn>
-          <ActionBtn onClick={onRecordPayment}><CreditCard /> Record Payment</ActionBtn>
-          <div className="relative" ref={moreMenuRef}>
-            <button onClick={() => setIsMoreMenuOpen(prev => !prev)} className="btn-secondary flex items-center gap-2"><MoreVertical /> More</button>
-            {isMoreMenuOpen && (
-              <div className="absolute right-0 mt-2 bg-white border rounded shadow-lg w-48 z-10">
-                <button onClick={() => handleMoreAction('print')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Print</button>
-                <button onClick={() => handleMoreAction('printLetterhead')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Print on Letterhead</button>
-                <button onClick={() => handleMoreAction('email')} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Email</button>
+          <div className="bg-sky-500 px-6 py-4 text-white text-xl font-medium shadow-sm">
+             View Bill # {invoice.billNumber}
+          </div>
+
+          {/* Action Toolbar */}
+          <div className="px-6 py-4 flex flex-wrap gap-2 items-center border-b bg-white shadow-sm sticky top-0 z-10">
+             <Link to={`/purchase-dashboard/bills/edit/${invoice.id}`} className="p-2 bg-sky-500 text-white rounded hover:bg-sky-600 transition shadow-sm" title="Edit">
+                <Edit size={18} />
+             </Link>
+             <button className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition shadow-sm" title="PDF">
+                <FileText size={18} />
+             </button>
+             <button onClick={handlePrint} className="p-2 bg-sky-600 text-white rounded hover:bg-sky-700 transition shadow-sm" title="Print">
+                <Printer size={18} />
+             </button>
+             <button onClick={handlePrint} className="px-3 py-2 bg-white border border-slate-300 text-slate-700 rounded hover:bg-slate-50 text-xs font-medium flex items-center gap-2 shadow-sm">
+                <Printer size={16} /> Print On Letterhead
+             </button>
+             <button className="p-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition shadow-sm" title="Email">
+                <Mail size={18} />
+             </button>
+             
+             {/* Attachments Dropdown Logic or Modal could be here, simply linking to them for now */}
+             {invoice.attachments && invoice.attachments.length > 0 && (
+                <div className="relative group">
+                   <button className="p-2 bg-green-500 text-white rounded hover:bg-green-600 transition shadow-sm" title="Attachments">
+                      <Paperclip size={18} />
+                   </button>
+                   <div className="absolute top-full left-0 mt-1 w-48 bg-white border rounded shadow-lg py-1 z-20 hidden group-hover:block">
+                      {invoice.attachments.map(a => (
+                         <a key={a.id} href={a.url} target="_blank" rel="noreferrer" className="block px-4 py-2 hover:bg-slate-100 text-xs truncate">
+                            {a.fileName}
+                         </a>
+                      ))}
+                   </div>
+                </div>
+             )}
+
+             <div className="relative">
+                 <button onClick={() => setShowMore(!showMore)} className="px-3 py-2 bg-slate-700 text-white rounded text-xs font-medium flex items-center gap-1 hover:bg-slate-800 transition shadow-sm">
+                    More <ChevronDown size={14} />
+                 </button>
+                 {showMore && (
+                     <div className="absolute top-full left-0 mt-1 w-48 bg-white border rounded shadow-lg py-1 z-20 text-xs text-slate-700" onMouseLeave={() => setShowMore(false)}>
+                         <button onClick={() => navigate('/purchase-dashboard/payments/new', { state: { supplierId: invoice.supplierId, invoiceId: invoice.id } })} className="block w-full text-left px-4 py-2 hover:bg-slate-100">Make Payment</button>
+                     </div>
+                 )}
+             </div>
+          </div>
+          
+          <div className="px-6 py-2 flex gap-4 text-xs text-slate-500 bg-white border-b">
+              <div>Created: {invoice.createdAt ? new Date(invoice.createdAt).toLocaleString() : ''} by {invoice.createdBy || 'System'}</div>
+          </div>
+      </div>
+
+      {/* DOCUMENT PREVIEW AREA */}
+      <div className="max-w-[210mm] mx-auto mt-6 bg-white shadow-lg print:shadow-none print:mt-0 print:w-full print:max-w-none border p-8 min-h-[297mm] text-slate-800 relative">
+         
+         {/* Letterhead Header Section */}
+         <div className="flex justify-between items-start mb-8 pb-4 border-b-2 border-slate-800">
+             <div className="flex gap-4 items-center">
+                 <div className="w-16 h-16 bg-slate-100 flex items-center justify-center rounded">
+                    <img src="/logo-placeholder.png" alt="Logo" className="max-w-full max-h-full opacity-50" onError={(e) => e.target.style.display='none'} />
+                    <span className="text-xs text-slate-400">Logo</span>
+                 </div>
+                 <div>
+                     <h1 className="text-xl font-bold uppercase tracking-wide">{tenantInfo.name}</h1>
+                     <p className="text-sm font-medium text-slate-600">{tenantInfo.address}</p>
+                 </div>
+             </div>
+         </div>
+
+         {/* Title & Meta Grid */}
+         <div className="flex justify-between items-end mb-6">
+             <div className="border border-slate-300 rounded p-0 overflow-hidden text-sm w-1/2">
+                 <div className="grid grid-cols-[120px_1fr] border-b border-slate-200">
+                     <div className="bg-slate-50 px-3 py-1 font-semibold text-slate-700 border-r border-slate-200">Bill No.</div>
+                     <div className="px-3 py-1 font-bold text-slate-900">: {invoice.billNumber}</div>
+                 </div>
+                 <div className="grid grid-cols-[120px_1fr] border-b border-slate-200">
+                     <div className="bg-slate-50 px-3 py-1 font-semibold text-slate-700 border-r border-slate-200">Bill Date</div>
+                     <div className="px-3 py-1">: {invoice.billDate ? new Date(invoice.billDate).toLocaleDateString() : '-'}</div>
+                 </div>
+                 <div className="grid grid-cols-[120px_1fr] border-b border-slate-200">
+                     <div className="bg-slate-50 px-3 py-1 font-semibold text-slate-700 border-r border-slate-200">Due Date</div>
+                     <div className="px-3 py-1">: {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : '-'}</div>
+                 </div>
+                 {invoice.orderNumber && (
+                    <div className="grid grid-cols-[120px_1fr] border-b border-slate-200">
+                        <div className="bg-slate-50 px-3 py-1 font-semibold text-slate-700 border-r border-slate-200">Ref Order.</div>
+                        <div className="px-3 py-1">: {invoice.orderNumber}</div>
+                    </div>
+                 )}
+                 {invoice.template && (
+                    <div className="grid grid-cols-[120px_1fr]">
+                        <div className="bg-slate-50 px-3 py-1 font-semibold text-slate-700 border-r border-slate-200">Template</div>
+                        <div className="px-3 py-1">: {invoice.template}</div>
+                    </div>
+                 )}
+             </div>
+             
+             <div className="text-right">
+                 <h2 className="text-3xl font-bold text-slate-900 uppercase mb-1">Purchase Bill</h2>
+                 <p className="text-sm font-bold text-slate-600">TRN : 123456789101111</p>
+             </div>
+         </div>
+
+         {/* Addresses */}
+         <div className="mb-8">
+             <div className="font-bold text-slate-800 border-b border-slate-300 mb-2 pb-1">Supplier Details</div>
+             <div className="bg-slate-50 p-3 border rounded text-sm">
+                 <div className="font-bold text-lg">{invoice.supplierName || 'Unknown Supplier'}</div>
+                 {/* Address from supplier object if available, backend DTO only provided name? 
+                     Typically we fetch full supplier details or backend provides it. 
+                     Assuming mapped in DTO or we might need to fetch separately if critical, 
+                     but DTO has supplierName. We'll show just name for now if address missing in DTO response. */}
+                 <div className="text-slate-600 whitespace-pre-wrap">Address information not loaded</div>
+             </div>
+         </div>
+
+         {/* Items Table */}
+         <table className="w-full border-collapse border border-slate-300 text-sm mb-6">
+             <thead className="bg-slate-100 text-slate-800 font-bold">
+                 <tr>
+                     <th className="border border-slate-300 px-2 py-2 w-12 text-center">S.N</th>
+                     <th className="border border-slate-300 px-3 py-2 text-left">Item & Description</th>
+                     <th className="border border-slate-300 px-2 py-2 text-center w-24">Qty</th>
+                     <th className="border border-slate-300 px-2 py-2 text-right w-24">Rate</th>
+                     <th className="border border-slate-300 px-2 py-2 text-right w-20">Discount</th>
+                     <th className="border border-slate-300 px-2 py-2 text-center w-20">Tax (%)</th>
+                     <th className="border border-slate-300 px-2 py-2 text-right w-28">Amount</th>
+                 </tr>
+             </thead>
+             <tbody>
+                 {(invoice.lines || []).map((it, i) => {
+                     // Deciding qty display
+                     const qty = invoice.grossNetEnabled && it.quantityNet > 0 ? it.quantityNet : it.quantityGross;
+                     
+                     return (
+                         <tr key={i}>
+                             <td className="border border-slate-300 px-2 py-2 text-center">{it.lineNumber || i + 1}</td>
+                             <td className="border border-slate-300 px-3 py-2">
+                                 <div className="font-semibold">{it.itemName || '-'}</div>
+                                 <div className="text-xs text-slate-500">{it.description}</div>
+                             </td>
+                             <td className="border border-slate-300 px-2 py-2 text-center">{Number(qty).toFixed(2)} {it.unitName}</td>
+                             <td className="border border-slate-300 px-2 py-2 text-right">{Number(it.rate).toFixed(2)}</td>
+                             <td className="border border-slate-300 px-2 py-2 text-right">{Number(it.lineDiscount || 0).toFixed(2)}</td>
+                             <td className="border border-slate-300 px-2 py-2 text-center">{Number(it.taxPercent || 0)}%</td>
+                             <td className="border border-slate-300 px-2 py-2 text-right">{Number(it.amount).toFixed(2)}</td>
+                         </tr>
+                     );
+                 })}
+             </tbody>
+         </table>
+
+         {/* Footer / Totals Section */}
+         <div className="flex gap-8 items-stretch h-full min-h-[200px]">
+             {/* Left Column: Words, Notes */}
+             <div className="flex-1 flex flex-col justify-between border border-slate-300 p-0">
+                  <div className="p-3 border-b border-slate-300">
+                      <div className="font-bold text-sm mb-1">Amount in Words :</div>
+                      <div className="text-sm italic text-slate-700 capitalize">
+                          {totalAmountWords} AED Only
+                      </div>
+                  </div>
+                  
+                  <div className="p-3 flex-1">
+                      {invoice.notes && (
+                          <div className="mb-4">
+                              <div className="font-bold text-sm mb-1">Notes :</div>
+                              <div className="text-xs text-slate-600 whitespace-pre-wrap">{invoice.notes}</div>
+                          </div>
+                      )}
+                  </div>
+             </div>
+
+             {/* Right Column: Totals */}
+             <div className="w-[300px] flex flex-col border border-slate-300 p-0">
+                  <div className="text-sm">
+                      <div className="flex justify-between p-2 border-b border-slate-200">
+                          <span className="font-semibold text-slate-700">Sub Total</span>
+                          <span>{Number(invoice.subTotal || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between p-2 border-b border-slate-200">
+                          <span className="font-semibold text-slate-700">Total Discount</span>
+                          <span>{Number(invoice.totalDiscount || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between p-2 border-b border-slate-200 bg-slate-50">
+                          <span className="font-semibold text-slate-700">Gross Total</span>
+                          <span>{Number(invoice.grossTotal || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between p-2 border-b border-slate-200">
+                          <span className="font-semibold text-slate-700">Total Tax</span>
+                          <span>{Number(invoice.totalTax || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between p-2 border-b border-slate-200">
+                          <span className="font-semibold text-slate-700">Other Charges</span>
+                          <span>{Number(invoice.otherCharges || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between p-3 bg-slate-100 font-bold text-lg text-slate-900">
+                          <span>Net Total</span>
+                          <span>AAD {Number(invoice.netTotal || 0).toFixed(2)}</span>
+                      </div>
+                  </div>
+             </div>
+         </div>
+
+         {/* Signature Block */}
+         <div className="mt-12 pt-8 flex justify-end">
+              <div className="text-center w-48">
+                  <div className="mb-4 h-16">
+                      {/* Authorized Signature Image Placeholder */}
+                  </div>
+                  <div className="border-t border-slate-400 pt-2 font-bold text-slate-700 text-sm">Authorized Signature</div>
               </div>
-            )}
-          </div>
-        </div>
+         </div>
+
+         {/* Footer Line */}
+         <div className="absolute bottom-0 left-0 w-full text-center text-[10px] text-slate-400 p-4 border-t print:block hidden">
+             Computer generated document.
+         </div>
+
       </div>
-
-      {/* Audit / status */}
-      <div className="mb-4 text-sm text-foreground-muted">Created: {invoice.createdAt ? new Date(invoice.createdAt).toLocaleString() : '-'}</div>
-
-      {/* Printable area */}
-      <div ref={printableRef} className="bg-white p-6 border border-border rounded">
-        {/* Simple receipt layout — adapt/replace with your actual print template */}
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <div className="font-bold text-lg">{invoice.supplierName || 'Supplier'}</div>
-            <div className="text-sm text-foreground-muted">{invoice.supplierAddress || ''}</div>
-          </div>
-          <div className="text-right">
-            <div><strong>Bill No:</strong> {invoice.billNumber}</div>
-            <div><strong>Date:</strong> {invoice.billDate ? new Date(invoice.billDate).toLocaleDateString() : ''}</div>
-            <div><strong>Due:</strong> {invoice.dueDate ? new Date(invoice.dueDate).toLocaleDateString() : 'N/A'}</div>
-          </div>
-        </div>
-
-        <table className="min-w-full mb-4">
-          <thead>
-            <tr className="bg-background-muted">
-              <th className="text-left py-2 px-3">#</th>
-              <th className="text-left py-2 px-3">Item</th>
-              <th className="text-right py-2 px-3">Qty</th>
-              <th className="text-right py-2 px-3">Rate</th>
-              <th className="text-right py-2 px-3">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(invoice.lines || []).map((l, idx) => (
-              <tr key={idx}>
-                <td className="py-2 px-3">{l.lineNumber}</td>
-                <td className="py-2 px-3">{l.itemName || l.description || '-'}</td>
-                <td className="py-2 px-3 text-right">{(l.quantityNet ?? l.quantity ?? 0)}</td>
-                <td className="py-2 px-3 text-right">{(l.rate ?? 0).toFixed(2)}</td>
-                <td className="py-2 px-3 text-right">{(l.amount ?? 0).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div className="flex justify-end">
-          <div className="w-64">
-            <div className="flex justify-between"><span>Subtotal</span><span>{(invoice.subTotal ?? 0).toFixed(2)}</span></div>
-            <div className="flex justify-between"><span>Total Discount</span><span>{(invoice.totalDiscount ?? 0).toFixed(2)}</span></div>
-            <div className="flex justify-between"><span>Total Tax</span><span>{(invoice.totalTax ?? 0).toFixed(2)}</span></div>
-            <div className="flex justify-between border-t pt-2 mt-2"><strong>Total</strong><strong>{(invoice.netTotal ?? invoice.totalAmount ?? 0).toFixed(2)}</strong></div>
-          </div>
-        </div>
-
-        {/* attachments (simple list) */}
-        {invoice.attachments && invoice.attachments.length > 0 && (
-          <div className="mt-4">
-            <strong>Attachments</strong>
-            <ul className="list-disc ml-6">
-              {invoice.attachments.map((a, i) => <li key={i}>{a.fileName}</li>)}
-            </ul>
-          </div>
-        )}
-      </div>
-
-      {/* optional: small footer / operations */}
-      <div className="mt-6 text-sm text-foreground-muted">Operations: print / record payment / convert are available here (implement server side for convert).</div>
     </div>
   );
 };
