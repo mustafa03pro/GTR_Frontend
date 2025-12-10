@@ -16,15 +16,15 @@ const SidebarContent = ({ onLinkClick }) => {
     };
 
     const allNavLinks = [
-        { name: 'Dashboard', icon: LayoutDashboard, href: '/company-dashboard', color: 'text-indigo-500' },
-        { name: 'HRMS', icon: Users, href: '/hrdashboard', module: 'HRMS_CORE', color: 'text-blue-500' },
-        { name: 'POS', icon: ShoppingCart, href: '/pos-dashboard', module: 'POS', color: 'text-green-500' },
-        { name: 'Sales', icon: DollarSign, href: '/sales-dashboard', module: 'SALES', color: 'text-emerald-500' },
-        { name: 'Purchases', icon: ShoppingCart, href: '/purchase-dashboard',module: 'PURCHASES', color: 'text-orange-500' },
-        { name: 'CRM', icon: Users, href: '/crm-dashboard', module: 'CRM', color: 'text-rose-500' },
-        { name: 'Account', icon: Landmark, href: '/account-dashboard', color: 'text-amber-500' },
-        { name: 'Production', icon: Building, href: '/production-dashboard', module: 'PRODUCTION', color: 'text-cyan-500' },
-        { name: 'Settings', icon: Settings, href: '/company-settings', color: 'text-slate-500' },
+        { name: 'Dashboard', icon: LayoutDashboard, href: '/company-dashboard' },
+        { name: 'HRMS', icon: Users, href: '/hrdashboard', module: 'HRMS_CORE' },
+        { name: 'POS', icon: ShoppingCart, href: '/pos-dashboard', module: 'POS' },
+        { name: 'Sales', icon: DollarSign, href: '/sales-dashboard', module: 'SALES' },
+        { name: 'CRM', icon: Users, href: '/crm-dashboard', module: 'CRM' },
+        { name: 'Production', icon: Building, href: '/production-dashboard', module: 'PRODUCTION' },
+        { name: 'Purchase', icon: Settings, href: '/purchase-dashboard',module: 'PURCHASES'},
+        { name: 'Settings', icon: Settings, href: '/company-settings' },
+       
     ];
 
     const navLinks = useMemo(() => {

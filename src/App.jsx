@@ -1,4 +1,5 @@
 import { Route, BrowserRouter as Router, Routes, Outlet } from 'react-router-dom'
+import {Route, BrowserRouter as Router, Routes, Navigate } from 'react-router-dom'
 import './App.css'
 import { TenantProvider } from './context/TenantContext.jsx'
 import Home from './pages/Home'
@@ -35,6 +36,7 @@ import QuotationForm from './sales/pages/QuotationForm.jsx';
 import Quotation from './sales/pages/Quotation.jsx'
 import ViewQuotation from './sales/pages/ViewQuotation.jsx';
 import SalesSetting from './sales/pages/SalesSetting.jsx'
+
 import PartyType from './components/PartyType/PartyType.jsx'
 import PartyForm from './components/PartyType/PartyForm.jsx'
 import CrmContacts from './crm/pages/CrmContacts.jsx'
@@ -43,6 +45,11 @@ import AccountSetting from './accounting/settings/AccountSetting.jsx'
 import CrmSalesProduct from './crm/components/CrmSalesProduct.jsx'
 import CrmSalesProductForm from './crm/components/CrmSalesProductForm.jsx'
 
+import PurchaseModule from './purchase/pages/PurchaseModule.jsx'
+//import PurchaseOrder from './purchase/pages/PurchaseOrder.jsx'
+//import PurchaseModule from './purchase/pages/PurchaseOrderForm.jsx'
+
+ 
 // Placeholder for CRM child pages
 const CrmPlaceholder = ({ pageName }) => (
   <div className="text-center py-20">
@@ -172,6 +179,13 @@ function App() {
           </Route>
           {/* Purchase Module Routes */}
           <Route path="/purchase-dashboard/*" element={<PurchaseModule />} />
+          {/* Purchase Module Routes */}
+          {/* Redirect from the old dashboard URL to the new module's main page */}
+          <Route path="/purchase-dashboard" element={<Navigate to="/purchase/orders" replace />} />
+          <Route path="/purchase/*" element={<PurchaseModule />}>
+            {/* Child routes like 'orders' are now handled inside PurchaseModule.jsx */}
+          </Route>
+
         </Routes>
       </Router>
     </TenantProvider>

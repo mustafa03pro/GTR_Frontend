@@ -591,7 +591,7 @@ const TenantCard = ({ tenant, onDelete, onEdit, onViewDetails }) => {
                 <div className="flex justify-between items-start">
                     <h3 className="font-bold text-foreground">{tenant.companyName}</h3>
                     <span className={`px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${tenant.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {tenant.status.toLowerCase()}
+                        {tenant.status?.toLowerCase() ?? 'n/a'}
                     </span>
                 </div>
                 <p className="text-sm text-foreground-muted font-mono">{tenant.tenantId}</p>

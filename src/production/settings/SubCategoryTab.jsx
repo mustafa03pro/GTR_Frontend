@@ -45,7 +45,7 @@ const SubCategoryTab = ({ locationId }) => {
         const fetchSubCategories = async () => {
             setLoading(prev => ({ ...prev, subCats: true }));
             try {
-                const response = await axios.get(`${API_URL}/production/sub-categories?categoryId=${selectedCategoryId}`, { headers: authHeaders });
+                const response = await axios.get(`${API_URL}/production/subcategories?categoryId=${selectedCategoryId}`, { headers: authHeaders });
                 setSubCategories(response.data);
             } catch (err) {
                 setError('Failed to fetch sub-categories.');
@@ -90,12 +90,12 @@ const SubCategoryTab = ({ locationId }) => {
         setFormLoading(true);
         const payload = { ...itemData, categoryId: selectedCategoryId, locationId: itemData.locationId || null };
         const isUpdating = Boolean(itemData.id);
-        const url = isUpdating ? `${API_URL}/production/sub-categories/${itemData.id}` : `${API_URL}/production/sub-categories`;
+        const url = isUpdating ? `${API_URL}/production/subcategories/${itemData.id}` : `${API_URL}/production/subcategories`;
         const method = isUpdating ? 'put' : 'post';
 
         try {
-            await axios[method](url, payload, { headers: authHeaders });
-            const response = await axios.get(`${API_URL}/production/sub-categories?categoryId=${selectedCategoryId}`, { headers: authHeaders });
+            await axios[method](url, itemData, { headers: authHeaders });
+            const response = await axios.get(`${API_URL}/production/subcategories?categoryId=${selectedCategoryId}`, { headers: authHeaders });
             setSubCategories(response.data);
             handleCancel();
         } catch (err) {
@@ -108,8 +108,8 @@ const SubCategoryTab = ({ locationId }) => {
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this sub-category?')) {
             try {
-                await axios.delete(`${API_URL}/production/sub-categories/${id}`, { headers: authHeaders });
-                const response = await axios.get(`${API_URL}/production/sub-categories?categoryId=${selectedCategoryId}`, { headers: authHeaders });
+                await axios.delete(`${API_URL}/production/subcategories/${id}`, { headers: authHeaders });
+                const response = await axios.get(`${API_URL}/production/subcategories?categoryId=${selectedCategoryId}`, { headers: authHeaders });
                 setSubCategories(response.data);
             } catch (err) {
                 alert(`Error: ${err.response?.data?.message || 'Failed to delete sub-category.'}`);
